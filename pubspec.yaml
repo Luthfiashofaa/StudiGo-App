@@ -35,6 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   get: ^4.7.2
+  country_code_picker: ^3.4.1
+  image_picker: ^1.2.0
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:
@@ -45,7 +48,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -58,6 +61,17 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Declare image assets so they are bundled by Flutter's asset system.
+  # The project already contains `assets/logo.png` and `web/icons/logo.png`.
+  # It's recommended to keep assets under `assets/` and reference them as
+  # `assets/...` from code. For a minimal fix we include both paths so
+  # existing references to `web/icons/logo.png` continue to work.
+  assets:
+    - assets/logo.png
+    - assets/google.png
+    - assets/avatar_placeholder.png
+    - assets/AI.png
+    - assets/fire.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
