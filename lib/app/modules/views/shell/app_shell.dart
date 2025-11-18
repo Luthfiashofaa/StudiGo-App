@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../views/home/home_view.dart';
+import '../../views/schedule/schedule_view.dart';
 import '../../views/streak/streak_view.dart';
 import '../../views/profile/profile_view.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  final int initialIndex;
+  const AppShell({super.key, this.initialIndex = 0});
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -15,12 +17,18 @@ class _AppShellState extends State<AppShell> {
 
   final List<Widget> _pages = const [
     HomeView(),
-    _Placeholder(title: 'Calendar'),
+    ScheduleView(),
     StreakView(),
     ProfileView(),
   ];
 
   void _onTap(int idx) => setState(() => _currentIndex = idx);
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,12 +101,4 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-class _Placeholder extends StatelessWidget {
-  final String title;
-  const _Placeholder({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text(title, style: const TextStyle(fontSize: 20)));
-  }
-}
+// _Placeholder removed — replaced by real pages (ScheduleView etc.)
