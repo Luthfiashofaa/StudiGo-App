@@ -107,24 +107,25 @@ class HomeView extends GetView<HomeController> {
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  'Halo!',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w500,
+                                children: [
+                                  const Text(
+                                    'Halo!',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black,
+                                      fontFamily: 'LieblingMedium',
+                                    ),
                                   ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Lois Becket',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Lois Becket',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontFamily: 'LieblingBold',
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
                             ),
                           ],
                         ),
@@ -135,6 +136,7 @@ class HomeView extends GetView<HomeController> {
                           'Siap capai targetmu hari ini ?',
                           style: TextStyle(
                             fontSize: 20,
+                            fontFamily: 'LieblingBold',
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -153,7 +155,7 @@ class HomeView extends GetView<HomeController> {
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.blue.withOpacity(0.7),
-                                blurRadius: 12,
+                                blurRadius: 11,
                                 spreadRadius: 1,
                                 offset: const Offset(0, 0),
                               ),
@@ -234,7 +236,7 @@ class HomeView extends GetView<HomeController> {
                                     MainAxisAlignment.spaceBetween,
                                 children: const [
                                   Text(
-                                    'Dari Target harian tercapai',
+                                    'Dari target harian yang tercapai',
                                     style: TextStyle(color: Colors.black54),
                                   ),
                                   Text(
