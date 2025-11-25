@@ -46,7 +46,7 @@ class _ScheduleViewState extends State<ScheduleView> {
         'desc':
             'Kerjakan latihan soal tentang turunan dan integral. Fokus pada penerapan rumus dan grafi...',
         'priority': 'high',
-        'color': const Color(0xFF26BFBF),
+        'color': const Color.fromARGB(255, 255, 0, 0),
       },
       {
         'time': '11:30 AM - 12:30 PM',
@@ -54,7 +54,7 @@ class _ScheduleViewState extends State<ScheduleView> {
         'desc':
             'Buat program sederhana menggunakan struktur perulangan dan kondisi (if-else). Simpan hasil da...',
         'priority': 'high',
-        'color': const Color(0xFF9B6CEB),
+        'color': const Color.fromARGB(255, 255, 0, 0),
       },
       {
         'time': '11:30 AM - 12:30 PM',
@@ -62,7 +62,8 @@ class _ScheduleViewState extends State<ScheduleView> {
         'desc':
             'Rancang database mahasiswa dengan minimal 3 tabel (mahasiswa, mata kuliah, nilai). Buat query...',
         'priority': 'medium',
-        'color': const Color(0xFF2BD18C),
+        'color': Color.fromARGB(255, 255, 238, 0),
+
       },
       {
         'time': '11:30 AM - 12:30 PM',
@@ -70,7 +71,7 @@ class _ScheduleViewState extends State<ScheduleView> {
         'desc':
             'Buat tampilan halaman login dan beranda sederhana menggunakan Flutter. Pastikan desain...',
         'priority': 'low',
-        'color': const Color(0xFF3EA7FF),
+        'color': const Color.fromARGB(255, 9, 255, 0),
       },
     ];
 
@@ -203,7 +204,7 @@ class _ScheduleViewState extends State<ScheduleView> {
                                 alignment: const Alignment(0, -0.28),
                                 child: const Icon(
                                   Icons.chevron_right,
-                                  color: Colors.grey,
+                                  color: Color.fromARGB(255, 158, 158, 158),
                                 ),
                               ),
                             ),
@@ -263,6 +264,17 @@ class _ScheduleViewState extends State<ScheduleView> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
+                                  d['label'] as String,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.black
+                                        : const Color(0xFF797979),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
                                   day,
                                   style: TextStyle(
                                     color: isSelected
@@ -270,15 +282,6 @@ class _ScheduleViewState extends State<ScheduleView> {
                                         : const Color(0xFF797979),
                                     fontWeight: FontWeight.w800,
                                     fontSize: 18,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  monthLabel,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.black
-                                        : const Color(0xFF797979),
                                   ),
                                 ),
                               ],
@@ -291,17 +294,17 @@ class _ScheduleViewState extends State<ScheduleView> {
                               SizedBox(width: 3),
                               CircleAvatar(
                                 radius: 3,
-                                backgroundColor: Color(0xFF26BFBF),
+                                backgroundColor: Color.fromARGB(255, 255, 0, 0),
                               ),
                               SizedBox(width: 3),
                               CircleAvatar(
                                 radius: 3,
-                                backgroundColor: Color(0xFF89AFFF),
+                                backgroundColor: Color.fromARGB(255, 255, 238, 0),
                               ),
                               SizedBox(width: 3),
                               CircleAvatar(
                                 radius: 3,
-                                backgroundColor: Color(0xFFFFB017),
+                                backgroundColor: Color.fromARGB(255, 0, 255, 13),
                               ),
                             ],
                           ),
@@ -325,7 +328,7 @@ class _ScheduleViewState extends State<ScheduleView> {
                     final String priority = t['priority'] as String;
                     final Color priorityColor = priority == 'high'
                         ? Colors.redAccent
-                        : (priority == 'medium' ? Colors.green : Colors.amber);
+                        : (priority == 'medium' ? Colors.amber : Colors.green);
                     return Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -410,7 +413,7 @@ class _ScheduleViewState extends State<ScheduleView> {
                                         const SizedBox(width: 8),
                                         const Icon(
                                           Icons.more_vert,
-                                          color: Colors.grey,
+                                          color: Color(0xFF2B7FFF),
                                         ),
                                       ],
                                     ),
@@ -427,6 +430,21 @@ class _ScheduleViewState extends State<ScheduleView> {
                                     const SizedBox(height: 12),
                                     Row(
                                       children: [
+                                        const Icon(
+                                          Icons.import_contacts,
+                                          size: 16,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        const Text(
+                                          'Belajar',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const Spacer(),
                                         _PriorityBadge(
                                           color: priorityColor,
                                           size: 18,
@@ -441,6 +459,7 @@ class _ScheduleViewState extends State<ScheduleView> {
                                           style: TextStyle(
                                             color: priorityColor,
                                             fontWeight: FontWeight.w700,
+                                            fontSize: 13,
                                           ),
                                         ),
                                       ],

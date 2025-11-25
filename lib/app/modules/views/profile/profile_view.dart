@@ -213,7 +213,7 @@ class ProfileView extends GetView<ProfileController> {
             onPressed: controller.updateProfile,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryBlue,
-              foregroundColor: Colors.white,
+              foregroundColor: const Color.fromARGB(255, 255, 255, 255),
               minimumSize: const Size.fromHeight(52),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -229,7 +229,7 @@ class ProfileView extends GetView<ProfileController> {
           OutlinedButton(
             onPressed: controller.logout,
             style: OutlinedButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: const Color.fromARGB(255, 255, 255, 255),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
