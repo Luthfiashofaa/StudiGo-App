@@ -100,7 +100,48 @@ class VerifyCodeView extends GetView<VerifyCodeController> {
                 children: List.generate(5, (i) => codeBox(i)),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 16),
+              // Centered countdown and resend below code boxes
+              Center(
+                child: Obx(() {
+                  final rem = controller.remaining.value;
+                  final isSending = controller.isSending.value;
+                  String timerText;
+                  if (rem > 0) {
+                    final mins = (rem ~/ 60).toString().padLeft(2, '0');
+                    final secs = (rem % 60).toString().padLeft(2, '0');
+                    timerText = 'Kode berlaku: $mins:$secs';
+                  } else {
+                    timerText = 'Kode tidak aktif';
+                  }
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        timerText,
+                        style: TextStyle(color: Colors.grey.shade700),
+                      ),
+                      const SizedBox(height: 6),
+                      TextButton(
+                        onPressed: (rem == 0 && !isSending)
+                            ? controller.resendCode
+                            : null,
+                        child: isSending
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Kirim ulang kode'),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+
+              const SizedBox(height: 20),
 
               ElevatedButton(
                 onPressed: controller.verifyCode,

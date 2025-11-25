@@ -1,16 +1,48 @@
-# studigo
+# 📌 **Profil Proyek**
 
-A new Flutter project.
+## **Nama Aplikasi**
 
-## Getting Started
+**StudiGo**
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## **Deskripsi Aplikasi**
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Aplikasi StudiGo adalah aplikasi manajemen jadwal belajar yang membantu pengguna mengatur aktivitas harian, pengingat, serta memantau perkembangan belajar.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+## **Kelas – NIM – Nama – Username GitHub**
+
+| Kelas | NIM      | Nama         | Username GitHub |
+| ----- | -------- | ------------ | --------------- |
+| C  | 202210370311283 | Drestanto Budi Darmawan | drestbellamy|
+| C  | 202210370311300 | Ainun Sarah Salsabila | AI4nun|
+| C  | 202210370311303 | Luthfia Shofa Dewi |Luthfiashofaa|
+| C  | 202210370311305 | Nabil Eka Putra Aqilah |nabileka12345|
+
+## **Link Figma**
+
+🔗 [[https://www.figma.com/…](https://www.figma.com/…)](https://www.figma.com/design/YzQUAIvhrhhuxwAIBcfUqB/StudiGo?node-id=1-827&t=loaHNEGd4PbfY09L-0)
+
+---
+
+## **Worksheet**
+
+📁 **Path folder worksheet di repository:**
+
+```
+/docs/worksheet/
+```
+
+---
+
+## **Low Fidelity Prototype**
+
+📁 **Path folder low-fidelity di repository:**
+
+🔗 [/Low Fidelity Studio Go App](https://github.com/Luthfiashofaa/StudiGo-App/tree/41813593175fd92d6892b49b2006f27b705e4397/Low%20Fidelity%20Studio%20Go%20App)
+
+
+---
+

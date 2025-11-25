@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'daily_mission_view.dart';
 
 import '../../controllers/streak/streak_controller.dart';
 
@@ -81,6 +82,8 @@ class StreakView extends GetView<StreakController> {
                           painter: _WavyPathPainter(
                             days: totalDays,
                             currentDay: ctrl.streakCount.value,
+                            houses: ctrl.houses.toList(),
+                            selectedHouseIndex: ctrl.selectedHouseIndex.value,
                           ),
                         ),
                       ),
@@ -223,59 +226,65 @@ class StreakView extends GetView<StreakController> {
               Positioned(
                 right: 24,
                 bottom: 25,
-                child: SizedBox(
-                  width: 110,
-                  height: 110,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // subtle glow
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.2),
-                        ),
-                      ),
-                      // outer gradient ring
-                      Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFFFD93D), Color(0xFFFFC700)],
+                child: GestureDetector(
+                  onTap: () {
+                    // Navigate to Daily Mission screen when trophy is tapped
+                    Get.to(() => const DailyMissionView());
+                  },
+                  child: SizedBox(
+                    width: 110,
+                    height: 110,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // subtle glow
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.2),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.16),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
+                        ),
+                        // outer gradient ring
+                        Container(
+                          width: 90,
+                          height: 90,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFFFFD93D), Color(0xFFFFC700)],
                             ),
-                          ],
-                        ),
-                      ),
-
-                      // inner ring
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFFF0AD28),
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.emoji_events,
-                            color: Colors.black87,
-                            size: 32,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.16),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
+
+                        // inner ring
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFF0AD28),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.emoji_events,
+                              color: Colors.black87,
+                              size: 32,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -290,7 +299,15 @@ class StreakView extends GetView<StreakController> {
 class _WavyPathPainter extends CustomPainter {
   final int days;
   final int currentDay;
-  _WavyPathPainter({this.days = 20, this.currentDay = 1});
+  final List<String> houses;
+  final int selectedHouseIndex;
+
+  _WavyPathPainter({
+    this.days = 20,
+    this.currentDay = 1,
+    this.houses = const <String>[],
+    this.selectedHouseIndex = -1,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -302,6 +319,8 @@ class _WavyPathPainter extends CustomPainter {
 
     final w = size.width;
     final segmentH = 320.0;
+
+    // (Decorations will be drawn after we compute xForY so they can follow the path)
 
     // Helper: compute x position for a given y using a sine-based segment shape
     // Now compute positions with origin at bottom so the visual flow goes
@@ -318,6 +337,9 @@ class _WavyPathPainter extends CustomPainter {
       // alternate direction per segment starting from bottom
       return (seg % 2 == 0) ? center + amp * val : center - amp * val;
     }
+
+    // (Decorations will be drawn after we compute and draw the path so they
+    // can be layered above the road but still below the nodes.)
 
     // Sample the continuous curve at small intervals and then convert to smooth
     // cubic curves using Catmull-Rom -> cubic Bezier approximation.
@@ -363,11 +385,157 @@ class _WavyPathPainter extends CustomPainter {
       canvas.drawPath(path, pathPaint);
     }
 
-    // Draw day nodes from bottom upwards: Day 1 at the bottom.
+    // Precompute node centers so decorations (houses/trees) can avoid them.
+    final nodeCenters = <Offset>[];
     for (int i = 0; i < days; i++) {
-      // i == 0 -> Day 1 -> bottom-most segment
       final cy = size.height - (i * segmentH + 150.0);
       final cx = xForY(cy);
+      nodeCenters.add(Offset(cx, cy));
+    }
+
+    // Draw houses along the path (like trees) using precomputed samples.
+    void drawHouse(
+      Canvas canvas,
+      double cx,
+      double cy,
+      double scale,
+      String name,
+      bool selected,
+    ) {
+      // House base
+      final houseW = 34.0 * scale;
+      final houseH = 22.0 * scale;
+      final basePaint = Paint()
+        ..color = selected ? Colors.white : const Color(0xFFEDDFB8);
+      final roofPaint = Paint()
+        ..color = selected ? const Color(0xFF47CF5B) : const Color(0xFFCC6A3C);
+
+      final rect = Rect.fromCenter(
+        center: Offset(cx, cy),
+        width: houseW,
+        height: houseH,
+      );
+      final rRect = RRect.fromRectAndRadius(rect, const Radius.circular(4));
+      canvas.drawRRect(rRect, basePaint);
+
+      // Roof triangle
+      final roof = Path()
+        ..moveTo(cx - houseW / 2 - 2, cy - houseH / 2)
+        ..lineTo(cx + houseW / 2 + 2, cy - houseH / 2)
+        ..lineTo(cx, cy - houseH / 2 - (10.0 * scale))
+        ..close();
+      canvas.drawPath(roof, roofPaint);
+
+      // Optional small label (shortened)
+      final label = TextPainter(
+        text: TextSpan(
+          text: name.length > 10 ? name.substring(0, 10) + '…' : name,
+          style: TextStyle(
+            color: selected ? Colors.black87 : Colors.white,
+            fontSize: 10 * scale,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: 80 * scale);
+      label.paint(
+        canvas,
+        Offset(cx - label.width / 2, cy + houseH / 2 + 4 * scale),
+      );
+    }
+
+    // Place houses if available
+    if (houses.isNotEmpty && samples.length >= 2) {
+      final placed = <Offset>[];
+      final rand = math.Random(9876);
+      final nodeAvoid = 70.0;
+      final minSpacing = 56.0;
+      final target = houses.length;
+      final denom = (target - 1).clamp(1, samples.length - 1);
+
+      for (int t = 0; t < target; t++) {
+        final idxDouble = (t * (samples.length - 1) / denom);
+        int baseIdx = idxDouble.round().clamp(0, samples.length - 1);
+
+        bool placedOne = false;
+        for (int attempt = 0; attempt < 9 && !placedOne; attempt++) {
+          final tryIdx = (baseIdx + (attempt - 4)).clamp(0, samples.length - 1);
+          final s = samples[tryIdx];
+          final dx = (rand.nextDouble() - 0.5) * 60.0;
+          final cx = (s.dx + dx).clamp(16.0, w - 16.0);
+          final cy = s.dy + (rand.nextDouble() - 0.5) * 18.0;
+          final pos = Offset(cx, cy);
+
+          // avoid node centers
+          var bad = false;
+          for (final n in nodeCenters) {
+            if ((n - pos).distance < nodeAvoid) {
+              bad = true;
+              break;
+            }
+          }
+          if (bad) continue;
+
+          // avoid other houses
+          for (final hpos in placed) {
+            if ((hpos - pos).distance < minSpacing) {
+              bad = true;
+              break;
+            }
+          }
+          if (bad) continue;
+
+          // draw
+          final scale = 0.9 + rand.nextDouble() * 0.6;
+          final name = houses[t];
+          final selected = t == selectedHouseIndex;
+          drawHouse(canvas, cx, cy, scale, name, selected);
+          placed.add(pos);
+          placedOne = true;
+        }
+      }
+    }
+
+    // Decorative background: draw trees on top of the road but beneath the
+    // day nodes so they visually sit on the path layer.
+    void drawTree(Canvas canvas, double cx, double cy, double scale) {
+      final foliagePaint = Paint()
+        ..color = const Color(0xFF2F8C3A).withOpacity(0.16)
+        ..style = PaintingStyle.fill;
+      final trunkPaint = Paint()
+        ..color = const Color(0xFF6B3F1F).withOpacity(0.18)
+        ..style = PaintingStyle.fill;
+
+      final h = 48.0 * scale;
+      final trunkW = 8.0 * scale;
+      final trunkH = 12.0 * scale;
+
+      for (int layer = 0; layer < 3; layer++) {
+        final layerTop = cy - h + layer * (h * 0.28);
+        final width = h - layer * (h * 0.22);
+        final p = Path()
+          ..moveTo(cx, layerTop)
+          ..lineTo(cx - width / 2, layerTop + width / 1.05)
+          ..lineTo(cx + width / 2, layerTop + width / 1.05)
+          ..close();
+        canvas.drawPath(p, foliagePaint);
+      }
+
+      final rect = Rect.fromCenter(
+        center: Offset(cx, cy + trunkH / 2),
+        width: trunkW,
+        height: trunkH,
+      );
+      canvas.drawRect(rect, trunkPaint);
+    }
+
+    // (Tree placement moved below so we can draw them after nodes if desired.)
+
+    // Draw day nodes from bottom upwards: Day 1 at the bottom.
+    for (int i = 0; i < nodeCenters.length; i++) {
+      // use precomputed node center
+      final cx = nodeCenters[i].dx;
+      final cy = nodeCenters[i].dy;
 
       // White outer circle with shadow
       final shadowPaint = Paint()
@@ -449,6 +617,74 @@ class _WavyPathPainter extends CustomPainter {
         canvas,
         Offset(cx - dayText.width / 2, cy - dayText.height / 2),
       );
+    }
+
+    // Draw trees on top of the circles/nodes so they are not hidden behind
+    // the day markers. We sample the precomputed `samples` path points to
+    // distribute trees along the entire curved road (bottom -> top).
+    // Increase sampling density and remove the tight cap so trees can
+    // populate the entire curve (previous logic could stop early around
+    // level ~35 due to coarse stepping and low max count).
+    // Keep trees sparse: limit total trees so they don't overcrowd the path.
+    final maxTreesTop = 48; // reasonable default density
+    final randTop = math.Random(2345);
+    if (samples.isNotEmpty) {
+      // Place a small fixed number of trees evenly across the path so they
+      // reach the very top and remain sparse. If a chosen spot is too close
+      // to a node or another tree, try a few nearby samples before giving up.
+      final drawnPositions = <Offset>[];
+      const nodeAvoidDist = 80.0; // don't draw trees nearer than this to a node
+      const minTreeSpacing = 70.0; // minimum distance between trees
+
+      // Target number of trees across the whole path (kept small)
+      // Reduce slightly so decorations are visible but not crowded.
+      final targetTrees = math.min(maxTreesTop, 8);
+      if (samples.length >= 2 && targetTrees > 0) {
+        for (int t = 0; t < targetTrees; t++) {
+          // evenly spaced sample index (0..samples.length-1)
+          final idxDouble = (t * (samples.length - 1) / (targetTrees - 1));
+          int baseIdx = idxDouble.round().clamp(0, samples.length - 1);
+
+          bool placed = false;
+          // try nearby offsets if the base spot is unsuitable
+          for (int attempt = 0; attempt < 9 && !placed; attempt++) {
+            final offsetIdx = (baseIdx + (attempt - 4)).clamp(
+              0,
+              samples.length - 1,
+            );
+            final s = samples[offsetIdx];
+            final dx = (randTop.nextDouble() - 0.5) * 60.0;
+            final ox = (s.dx + dx).clamp(16.0, w - 16.0);
+            final scale = 0.35 + randTop.nextDouble() * 0.9;
+            final yJitter = (randTop.nextDouble() - 0.5) * 20.0;
+            final tx = ox;
+            final ty = s.dy + yJitter - 10.0;
+            final pos = Offset(tx, ty);
+
+            var tooCloseToNode = false;
+            for (final n in nodeCenters) {
+              if ((n - pos).distance < nodeAvoidDist) {
+                tooCloseToNode = true;
+                break;
+              }
+            }
+            if (tooCloseToNode) continue;
+
+            var tooCloseToTree = false;
+            for (final tpos in drawnPositions) {
+              if ((tpos - pos).distance < minTreeSpacing) {
+                tooCloseToTree = true;
+                break;
+              }
+            }
+            if (tooCloseToTree) continue;
+
+            drawTree(canvas, tx, ty, scale);
+            drawnPositions.add(pos);
+            placed = true;
+          }
+        }
+      }
     }
   }
 
