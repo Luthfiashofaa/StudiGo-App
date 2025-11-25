@@ -29,7 +29,7 @@ Aplikasi StudiGo adalah aplikasi manajemen jadwal belajar yang membantu pengguna
 
 ## **Worksheet**
 
-📁 **Path folder worksheet di repository:**
+📁 **Worksheet:**
 
 ```
 /docs/worksheet/
@@ -39,9 +39,18 @@ Aplikasi StudiGo adalah aplikasi manajemen jadwal belajar yang membantu pengguna
 
 ## **Low Fidelity Prototype**
 
-📁 **Path folder low-fidelity di repository:**
+📁 **Low-fidelity di repository:**
 
 🔗 [/Low Fidelity Studio Go App](https://github.com/Luthfiashofaa/StudiGo-App/tree/41813593175fd92d6892b49b2006f27b705e4397/Low%20Fidelity%20Studio%20Go%20App)
+
+
+---
+
+## **High Fidelity Prototype**
+
+📁 **High-fidelity di repository:**
+
+🔗 [/High Fidelity Studio Go App](https://github.com/Luthfiashofaa/StudiGo-App/tree/develop/High%20Fidelity%20StudiGo%20App))
 
 
 ---
