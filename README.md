@@ -23,7 +23,7 @@ Aplikasi StudiGo adalah aplikasi manajemen jadwal belajar yang membantu pengguna
 
 ## **Link Figma**
 
-🔗 [[https://www.figma.com/…](https://www.figma.com/…)](https://www.figma.com/design/YzQUAIvhrhhuxwAIBcfUqB/StudiGo?node-id=1-827&t=loaHNEGd4PbfY09L-0)
+🔗 [Link Figma](https://www.figma.com/design/YzQUAIvhrhhuxwAIBcfUqB/StudiGo?node-id=1-827&t=loaHNEGd4PbfY09L-0)
 
 ---
 
