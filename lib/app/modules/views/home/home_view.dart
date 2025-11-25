@@ -111,7 +111,7 @@ class HomeView extends GetView<HomeController> {
                                   const Text(
                                     'Halo!',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 20,
                                       color: Colors.black,
                                       fontFamily: 'LieblingMedium',
                                     ),
@@ -120,7 +120,7 @@ class HomeView extends GetView<HomeController> {
                                   const Text(
                                     'Lois Becket',
                                     style: TextStyle(
-                                      fontSize: 20,
+                                      fontSize: 24,
                                       fontFamily: 'LieblingBold',
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -155,7 +155,7 @@ class HomeView extends GetView<HomeController> {
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.blue.withOpacity(0.7),
-                                blurRadius: 11,
+                                blurRadius: 1,
                                 spreadRadius: 1,
                                 offset: const Offset(0, 0),
                               ),
