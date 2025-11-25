@@ -41,6 +41,23 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- URL scheme for deep-linking (custom scheme) used by Supabase recovery
+	     e.g. studigo://auth-callback#access_token=...&type=recovery
+	     Ensure Supabase Redirect URL includes: studigo://auth-callback -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>studigo</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>studigo</string>
+			</array>
+		</dict>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

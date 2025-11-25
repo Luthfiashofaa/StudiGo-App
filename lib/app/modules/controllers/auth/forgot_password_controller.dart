@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../views/auth/verify_code_view.dart';
 import '../../bindings/auth/verify_code_binding.dart';
+import '../../views/auth/verify_code_view.dart';
 
 class ForgotPasswordController extends GetxController {
   final emailController = TextEditingController();
+  final RxBool isLoading = false.obs;
 
   @override
   void onClose() {
@@ -12,7 +13,7 @@ class ForgotPasswordController extends GetxController {
     super.onClose();
   }
 
-  void resetPassword() {
+  Future<void> resetPassword() async {
     final email = emailController.text.trim();
     if (email.isEmpty) {
       Get.snackbar(
@@ -23,16 +24,25 @@ class ForgotPasswordController extends GetxController {
       return;
     }
 
-    Get.snackbar(
-      'Password reset',
-      'If an account exists for $email, you will receive an email with reset instructions.',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    isLoading.value = true;
+    try {
+      Get.snackbar(
+        'Sukses',
+        'Jika akun ada, kode reset akan dikirim ke $email',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
 
-    Get.to(
-      () => const VerifyCodeView(),
-      binding: VerifyCodeBinding(),
-      arguments: {'email': email},
-    );
+      // Navigate to the code entry screen (prefill email)
+      Get.to(
+        () => const VerifyCodeView(),
+        binding: VerifyCodeBinding(),
+        arguments: {'email': email},
+      );
+    } catch (e) {
+      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading.value = false;
+    }
   }
 }
