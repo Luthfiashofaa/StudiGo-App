@@ -24,6 +24,35 @@ class _AppShellState extends State<AppShell> {
 
   void _onTap(int idx) => setState(() => _currentIndex = idx);
 
+  Widget _buildNavIcon({
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    const activeBoxColor = Color(0xFF6097FF); // #6097FF untuk kotak aktif
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: isActive
+          ? BoxDecoration(
+              color: activeBoxColor,
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
+      alignment: Alignment.center,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 56, height: 56),
+        onPressed: onTap,
+        icon: Icon(
+          icon,
+          color: isActive ? Colors.white : Colors.white70,
+          size: 32,
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +61,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2D7DF6);
+    const primaryBlue = Color(0xFF1557D4);
 
     return Scaffold(
       body: SafeArea(child: _pages[_currentIndex]),
@@ -51,37 +80,25 @@ class _AppShellState extends State<AppShell> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                IconButton(
-                  onPressed: () => _onTap(0),
-                  icon: Icon(
-                    Icons.home,
-                    color: _currentIndex == 0 ? Colors.white : Colors.white70,
-                    size: 28,
-                  ),
+                _buildNavIcon(
+                  icon: Icons.home,
+                  isActive: _currentIndex == 0,
+                  onTap: () => _onTap(0),
                 ),
-                IconButton(
-                  onPressed: () => _onTap(1),
-                  icon: Icon(
-                    Icons.event,
-                    color: _currentIndex == 1 ? Colors.white : Colors.white70,
-                    size: 28,
-                  ),
+                _buildNavIcon(
+                  icon: Icons.event,
+                  isActive: _currentIndex == 1,
+                  onTap: () => _onTap(1),
                 ),
-                IconButton(
-                  onPressed: () => _onTap(2),
-                  icon: Icon(
-                    Icons.track_changes,
-                    color: _currentIndex == 2 ? Colors.white : Colors.white70,
-                    size: 28,
-                  ),
+                _buildNavIcon(
+                  icon: Icons.track_changes,
+                  isActive: _currentIndex == 2,
+                  onTap: () => _onTap(2),
                 ),
-                IconButton(
-                  onPressed: () => _onTap(3),
-                  icon: Icon(
-                    Icons.person,
-                    color: _currentIndex == 3 ? Colors.white : Colors.white70,
-                    size: 28,
-                  ),
+                _buildNavIcon(
+                  icon: Icons.person,
+                  isActive: _currentIndex == 3,
+                  onTap: () => _onTap(3),
                 ),
               ],
             ),
