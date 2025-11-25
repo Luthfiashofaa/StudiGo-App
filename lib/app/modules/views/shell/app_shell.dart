@@ -31,8 +31,8 @@ class _AppShellState extends State<AppShell> {
   }) {
     const activeBoxColor = Color(0xFF6097FF); // #6097FF untuk kotak aktif
     return Container(
-      width: 52,
-      height: 52,
+      width: 50,
+      height: 50,
       decoration: isActive
           ? BoxDecoration(
               color: activeBoxColor,
@@ -42,12 +42,12 @@ class _AppShellState extends State<AppShell> {
       alignment: Alignment.center,
       child: IconButton(
         padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 52, height: 52),
+        constraints: const BoxConstraints.tightFor(width: 56, height: 56),
         onPressed: onTap,
         icon: Icon(
           icon,
           color: isActive ? Colors.white : Colors.white70,
-          size: 24,
+          size: 32,
         ),
       ),
     );
