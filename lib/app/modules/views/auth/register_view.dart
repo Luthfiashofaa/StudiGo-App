@@ -2,62 +2,108 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth/register_controller.dart';
 
-class RegisterView extends GetView<RegisterController> {
+class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final primaryBlue = const Color(0xFF0B61FF);
+  State<RegisterView> createState() => _RegisterViewState();
+}
 
-    InputDecoration fieldDecoration(String hint, {Widget? suffix}) =>
-        InputDecoration(
-          hintText: hint,
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          suffixIcon: suffix,
-        );
+class _RegisterViewState extends State<RegisterView> {
+  final controller = Get.find<RegisterController>();
 
-    Future<void> _pickDate() async {
-      final now = DateTime.now();
-      final initial = controller.birthDate.value ?? DateTime(now.year - 20);
-      final picked = await showDatePicker(
-        context: context,
-        initialDate: initial,
-        firstDate: DateTime(1900),
-        lastDate: now,
-        // Use builder to override the picker theme so the header/button color
-        // uses your primaryBlue instead of the default purple.
-        builder: (BuildContext context, Widget? child) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: ColorScheme.light(
-                primary: primaryBlue, // header background color
-                onPrimary: Colors.white, // header text color
-                onSurface: Colors.black, // body text color
-              ),
-              dialogBackgroundColor: Colors.white,
-              textButtonTheme: TextButtonThemeData(
-                style: TextButton.styleFrom(foregroundColor: primaryBlue),
-              ),
+  late final TextEditingController firstNameController;
+  late final TextEditingController lastNameController;
+  late final TextEditingController emailController;
+  late final TextEditingController birthDateController;
+  late final TextEditingController phoneController;
+  late final TextEditingController passwordController;
+
+  DateTime? birthDate;
+
+  @override
+  void initState() {
+    super.initState();
+    firstNameController = TextEditingController();
+    lastNameController = TextEditingController();
+    emailController = TextEditingController();
+    birthDateController = TextEditingController();
+    phoneController = TextEditingController();
+    passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    firstNameController.dispose();
+    lastNameController.dispose();
+    emailController.dispose();
+    birthDateController.dispose();
+    phoneController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  String _formatDate(DateTime d) {
+    return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final initial = birthDate ?? DateTime(now.year - 20);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: now,
+      builder: (BuildContext context, Widget? child) {
+        const primaryBlue = Color(0xFF0B61FF);
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: primaryBlue,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
             ),
-            child: child ?? const SizedBox.shrink(),
-          );
-        },
-      );
-      if (picked != null) controller.setBirthDate(picked);
+            dialogBackgroundColor: Colors.white,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: primaryBlue),
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        birthDate = picked;
+        birthDateController.text = _formatDate(picked);
+      });
     }
+  }
+
+  InputDecoration fieldDecoration(String hint, {Widget? suffix}) =>
+      InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        suffixIcon: suffix,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryBlue = Color(0xFF0B61FF);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -85,21 +131,21 @@ class RegisterView extends GetView<RegisterController> {
 
               // First name
               TextField(
-                controller: controller.firstNameController,
+                controller: firstNameController,
                 decoration: fieldDecoration('First Name'),
               ),
               const SizedBox(height: 12),
 
               // Last name
               TextField(
-                controller: controller.lastNameController,
+                controller: lastNameController,
                 decoration: fieldDecoration('Last Name'),
               ),
               const SizedBox(height: 12),
 
               // Email
               TextField(
-                controller: controller.emailController,
+                controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: fieldDecoration('Email'),
               ),
@@ -110,7 +156,7 @@ class RegisterView extends GetView<RegisterController> {
                 onTap: _pickDate,
                 child: AbsorbPointer(
                   child: TextField(
-                    controller: controller.birthDateController,
+                    controller: birthDateController,
                     decoration: fieldDecoration(
                       'Birth date',
                       suffix: const Padding(
@@ -125,7 +171,7 @@ class RegisterView extends GetView<RegisterController> {
 
               // Phone
               TextField(
-                controller: controller.phoneController,
+                controller: phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: fieldDecoration('Phone Number'),
               ),
@@ -133,26 +179,55 @@ class RegisterView extends GetView<RegisterController> {
 
               // Password
               TextField(
-                controller: controller.passwordController,
+                controller: passwordController,
                 obscureText: true,
                 decoration: fieldDecoration('Password'),
               ),
 
               const SizedBox(height: 40),
 
-              ElevatedButton(
-                onPressed: controller.register,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              Obx(
+                () => ElevatedButton(
+                  onPressed: controller.isLoading.value
+                      ? null
+                      : () {
+                          controller.register(
+                            first: firstNameController.text.trim(),
+                            last: lastNameController.text.trim(),
+                            email: emailController.text.trim(),
+                            pwd: passwordController.text,
+                            birthdateIso: birthDate != null
+                                ? birthDate!.toIso8601String().split('T').first
+                                : null,
+                            phoneNumber: phoneController.text.trim().isNotEmpty
+                                ? phoneController.text.trim()
+                                : null,
+                          );
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    minimumSize: const Size.fromHeight(52),
                   ),
-                  minimumSize: const Size.fromHeight(52),
-                ),
-                child: const Text(
-                  'Register',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  child: controller.isLoading.value
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Register',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
 

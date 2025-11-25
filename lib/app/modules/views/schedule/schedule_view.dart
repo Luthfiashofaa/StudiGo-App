@@ -135,9 +135,7 @@ class _ScheduleViewState extends State<ScheduleView> {
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: ElevatedButton.icon(
-              onPressed: () {
-               
-              },
+              onPressed: () {},
               icon: const Icon(Icons.add, size: 18, color: Colors.white),
               label: const Text(
                 'Add Task',

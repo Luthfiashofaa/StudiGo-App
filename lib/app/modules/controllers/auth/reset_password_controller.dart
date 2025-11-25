@@ -16,7 +16,12 @@ class ResetPasswordController extends GetxController {
 
   void confirm() {
     // Navigate to New Password screen so the user can set their new password.
-    // The NewPasswordBinding will provide the required controller.
-    Get.to(() => const NewPasswordView(), binding: NewPasswordBinding());
+    // Forward any incoming deep-link arguments (e.g. authParams with access_token)
+    final args = Get.arguments;
+    Get.to(
+      () => const NewPasswordView(),
+      binding: NewPasswordBinding(),
+      arguments: args,
+    );
   }
 }
