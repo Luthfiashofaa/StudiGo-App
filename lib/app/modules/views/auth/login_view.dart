@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth/login_controller.dart';
@@ -6,8 +7,32 @@ import '../../bindings/auth/register_binding.dart';
 import 'forgot_password_view.dart';
 import '../../bindings/auth/forgot_password_binding.dart';
 
-class LoginView extends GetView<LoginController> {
+class LoginView extends StatefulWidget {
   const LoginView({super.key});
+
+  @override
+  State<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<LoginView> {
+  final controller = Get.find<LoginController>();
+
+  late TextEditingController emailController;
+  late TextEditingController passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    emailController = TextEditingController();
+    passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +95,7 @@ class LoginView extends GetView<LoginController> {
 
                   // Email
                   TextField(
-                    controller: controller.emailController,
+                    controller: emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: fieldDecoration('Email'),
                   ),
@@ -78,7 +103,7 @@ class LoginView extends GetView<LoginController> {
 
                   // Password
                   TextField(
-                    controller: controller.passwordController,
+                    controller: passwordController,
                     obscureText: true,
                     decoration: fieldDecoration('Password'),
                   ),
@@ -110,23 +135,57 @@ class LoginView extends GetView<LoginController> {
                   const SizedBox(height: 8),
 
                   // Login button
-                  ElevatedButton(
-                    onPressed: controller.login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryBlue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  Obx(
+                    () => ElevatedButton(
+                      onPressed: controller.isLoading.value
+                          ? null
+                          : () {
+                              String email;
+                              String password;
+                              try {
+                                email = emailController.text;
+                              } catch (e) {
+                                // Controller was disposed unexpectedly; recover with empty string
+                                email = '';
+                                emailController = TextEditingController();
+                              }
+                              try {
+                                password = passwordController.text;
+                              } catch (e) {
+                                password = '';
+                                passwordController = TextEditingController();
+                              }
+
+                              controller.login(
+                                email: email,
+                                password: password,
+                              );
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        minimumSize: const Size.fromHeight(52),
+                        elevation: 0,
                       ),
-                      minimumSize: const Size.fromHeight(52),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Log in',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      child: controller.isLoading.value
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Log in',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
 
@@ -149,7 +208,7 @@ class LoginView extends GetView<LoginController> {
                   // Google sign-in
                   OutlinedButton.icon(
                     onPressed: () {
-                      // TODO: implement Google sign in
+                      controller.continueWithGoogle();
                     },
                     icon: Image.asset(
                       'assets/google.png',
