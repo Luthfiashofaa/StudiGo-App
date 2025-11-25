@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'add_schedule_view.dart';
 
 class ScheduleView extends StatefulWidget {
   const ScheduleView({Key? key}) : super(key: key);
@@ -136,11 +135,7 @@ class _ScheduleViewState extends State<ScheduleView> {
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AddScheduleView()),
-                );
-              },
+              onPressed: () {},
               icon: const Icon(Icons.add, size: 18, color: Colors.white),
               label: const Text(
                 'Add Task',
