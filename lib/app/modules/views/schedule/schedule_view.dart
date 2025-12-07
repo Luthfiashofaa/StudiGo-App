@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 
 class ScheduleView extends StatefulWidget {
   const ScheduleView({Key? key}) : super(key: key);
@@ -132,30 +134,33 @@ class _ScheduleViewState extends State<ScheduleView> {
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.add, size: 18, color: Colors.white),
-              label: const Text(
-                'Add Task',
-                style: TextStyle(fontSize: 16, color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2D7DF6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                elevation: 0,
-              ),
-            ),
-          ),
-        ],
+      actions: [
+  Padding(
+    padding: const EdgeInsets.only(right: 12.0),
+    child: ElevatedButton.icon(
+      onPressed: () {
+         Get.toNamed('/add-schedule');
+      },
+      icon: const Icon(Icons.add, size: 18, color: Colors.white),
+      label: const Text(
+        'Add Task',
+        style: TextStyle(fontSize: 16, color: Colors.white),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF2D7DF6),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        elevation: 0,
+      ),
+    ),
+  ),
+],
+
       ),
       body: SafeArea(
         child: Padding(
