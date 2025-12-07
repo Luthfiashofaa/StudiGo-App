@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '../../controllers/schedule/add_schedule_controller.dart';
 
 class AddScheduleView extends StatefulWidget {
   const AddScheduleView({Key? key}) : super(key: key);
@@ -8,6 +11,7 @@ class AddScheduleView extends StatefulWidget {
 }
 
 class _AddScheduleViewState extends State<AddScheduleView> {
+  late final AddScheduleController _controller;
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _descCtrl = TextEditingController();
   DateTime? _selectedDate;
@@ -16,8 +20,37 @@ class _AddScheduleViewState extends State<AddScheduleView> {
   bool _repeatDaily = false;
   String? _selectedCategory;
   String _priority = 'Tinggi';
+  String? _editingId;
 
   List<String> categories = ['Belajar', 'Istirahat', 'Hiburan', 'Tugas'];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = Get.find<AddScheduleController>();
+    final args = Get.arguments;
+    if (args is Map && args['schedule'] != null) {
+      final sched = args['schedule'] as Map;
+      _editingId = sched['id']?.toString();
+      _nameCtrl.text = sched['title']?.toString() ?? '';
+      _descCtrl.text = sched['description']?.toString() ?? '';
+      _repeatDaily = sched['repeat_daily'] == true;
+      _selectedCategory = sched['category']?.toString();
+      _priority = sched['priority']?.toString() ?? _priority;
+
+      final startRaw = sched['start_time']?.toString();
+      final endRaw = sched['end_time']?.toString();
+      final start = startRaw != null ? DateTime.tryParse(startRaw) : null;
+      final end = endRaw != null ? DateTime.tryParse(endRaw) : null;
+      if (start != null) {
+        _selectedDate = DateTime(start.year, start.month, start.day);
+        _startTime = TimeOfDay(hour: start.hour, minute: start.minute);
+      }
+      if (end != null) {
+        _endTime = TimeOfDay(hour: end.hour, minute: end.minute);
+      }
+    }
+  }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -74,6 +107,62 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     super.dispose();
   }
 
+  Future<void> _saveSchedule() async {
+    final title = _nameCtrl.text.trim();
+    final description = _descCtrl.text.trim();
+
+    if (title.isEmpty) {
+      Get.snackbar('Validasi', 'Nama jadwal wajib diisi');
+      return;
+    }
+    if (_selectedDate == null) {
+      Get.snackbar('Validasi', 'Tanggal wajib dipilih');
+      return;
+    }
+    if (_startTime == null || _endTime == null) {
+      Get.snackbar('Validasi', 'Waktu mulai & selesai wajib dipilih');
+      return;
+    }
+
+    try {
+      if (_editingId != null) {
+        await _controller.updateSchedule(
+          id: _editingId!,
+          title: title,
+          description: description,
+          date: _selectedDate!,
+          startTime: _startTime!,
+          endTime: _endTime!,
+          repeatDaily: _repeatDaily,
+          priority: _priority,
+          category: _selectedCategory,
+        );
+      } else {
+        await _controller.createSchedule(
+          title: title,
+          description: description,
+          date: _selectedDate!,
+          startTime: _startTime!,
+          endTime: _endTime!,
+          repeatDaily: _repeatDaily,
+          priority: _priority,
+          category: _selectedCategory,
+        );
+      }
+
+      if (!mounted) return;
+      Get.snackbar(
+        'Berhasil',
+        _editingId != null
+            ? 'Jadwal berhasil diperbarui'
+            : 'Jadwal berhasil disimpan',
+      );
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      Get.snackbar('Gagal', e.toString());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,9 +174,12 @@ class _AddScheduleViewState extends State<AddScheduleView> {
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text(
-          'Tambah Task',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700),
+        title: Text(
+          _editingId != null ? 'Edit Task' : 'Tambah Task',
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: SafeArea(
@@ -394,24 +486,38 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                 child: SizedBox(
                   width: 250,
                   height: 54,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: save action
-                      Navigator.of(context).maybePop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D7DF6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  child: Obx(
+                    () => ElevatedButton(
+                      onPressed: _controller.isSaving.value
+                          ? null
+                          : _saveSchedule,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D7DF6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      'Simpan Target',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+                      child: _controller.isSaving.value
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              _editingId != null
+                                  ? 'Perbarui Target'
+                                  : 'Simpan Target',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
                 ),
