@@ -441,7 +441,7 @@ class _ScheduleViewState extends State<ScheduleView> {
                                           style: TextStyle(
                                             color: Colors.grey,
                                             fontSize: 13,
-                                            fontWeight: FontWeight.w500,
+                                            fontWeight: FontWeight.w500
                                           ),
                                         ),
                                         const Spacer(),
