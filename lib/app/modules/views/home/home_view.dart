@@ -107,25 +107,25 @@ class HomeView extends GetView<HomeController> {
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Halo!',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      color: Colors.black,
-                                      fontFamily: 'LieblingMedium',
-                                    ),
+                              children: [
+                                const Text(
+                                  'Halo!',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    color: Colors.black,
+                                    fontFamily: 'LieblingMedium',
                                   ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Lois Becket',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontFamily: 'LieblingBold',
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Lois Becket',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontFamily: 'LieblingBold',
+                                    fontWeight: FontWeight.w800,
                                   ),
-                                ],
+                                ),
+                              ],
                             ),
                           ],
                         ),
