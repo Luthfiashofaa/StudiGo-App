@@ -30,6 +30,11 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: null,
+      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -43,122 +48,123 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
               color: Colors.grey.shade600,
             );
 
-            return Center(
+            return Align(
+              alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: isTablet ? 700 : double.infinity,
                 ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding,
-                    vertical: 16,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(
-                              minWidth: 48,
-                              minHeight: 48,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(
+                        left: horizontalPadding,
+                        right: horizontalPadding,
+                        top: isTablet ? 16 : 0,
+                        bottom: 16,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Forgot password',
+                              style: TextStyle(
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                            onPressed: () => Get.back(),
-                            icon: const Icon(Icons.arrow_back, size: 28),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                            SizedBox(height: isTablet ? 8 : 4),
+                            Text(
+                              'Please enter your email to reset the password',
+                              style: contentTextStyle,
+                            ),
+                            SizedBox(height: isTablet ? 40 : 24),
 
-                        Text(
-                          'Forgot password',
-                          style: TextStyle(
-                            fontSize: titleSize,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                                            Transform.translate(
-                                              offset: Offset(isTablet ? -20 : -12, 0),
-                                              child: Align(
-                                                alignment: Alignment.centerLeft,
-                                                child: IconButton(
-                                                  padding: const EdgeInsets.all(8),
-                                                  constraints: const BoxConstraints(
-                                                    minWidth: 48,
-                                                    minHeight: 48,
-                                                  ),
-                                                  onPressed: () => Get.back(),
-                                                  icon: const Icon(Icons.arrow_back, size: 28),
-                                                ),
-                                              ),
-                                            ),
-                        Text(
-                          'Please enter your email to reset the password',
-                          style: contentTextStyle,
-                        ),
-                        SizedBox(height: isTablet ? 40 : 35),
+                            Text(
+                              'Your Email',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: isTablet ? 16 : 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: controller.emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: fieldDecoration(
+                                'Enter your email',
+                                isTablet,
+                              ),
+                            ),
 
-                        Text(
-                          'Your Email',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: isTablet ? 16 : 14,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: controller.emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: fieldDecoration(
-                            'Enter your email',
-                            isTablet,
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-                        Obx(
-                          () => SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: controller.isLoading.value
-                                  ? null
-                                  : controller.resetPassword,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryBlue,
-                                foregroundColor: Colors.white,
-                                minimumSize: Size.fromHeight(
-                                  isTablet ? 60 : 52,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            const SizedBox(height: 20),
+                            Obx(
+                              () => SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: controller.isLoading.value
+                                      ? null
+                                      : controller.resetPassword,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primaryBlue,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: Size.fromHeight(
+                                      isTablet ? 60 : 52,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: controller.isLoading.value
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Reset Password',
+                                          style: TextStyle(
+                                            fontSize: isTablet ? 18 : 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
                                 ),
                               ),
-                              child: controller.isLoading.value
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      'Reset Password',
-                                      style: TextStyle(
-                                        fontSize: isTablet ? 18 : 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                            ),
+
+                            const SizedBox(height: 8),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // show back button icon on tablet only
+                    if (isTablet)
+                      Positioned(
+                        left: -(horizontalPadding + 48.0),
+                        top: 8,
+                        child: SizedBox(
+                          width: horizontalPadding + 64.0,
+                          height: 64.0,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              padding: const EdgeInsets.all(8),
+                              constraints: const BoxConstraints(
+                                minWidth: 48,
+                                minHeight: 48,
+                              ),
+                              onPressed: () => Get.back(),
+                              icon: const Icon(Icons.arrow_back, size: 28),
                             ),
                           ),
                         ),
-
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  ),
+                      ),
+                  ],
                 ),
               ),
             );
