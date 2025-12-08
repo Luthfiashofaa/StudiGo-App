@@ -17,10 +17,7 @@ class AppPages {
   static const initial = Routes.splashscreen;
 
   static final routes = [
-    GetPage(
-      name: _Paths.splashscreen,
-      page: () => const SplashScreen(),
-    ),
+    GetPage(name: _Paths.splashscreen, page: () => const SplashScreen()),
     GetPage(
       name: _Paths.login,
       page: () => const LoginView(),
@@ -37,9 +34,6 @@ class AppPages {
       binding: AddScheduleBinding(),
     ),
 
-    GetPage(
-      name: '/auth-callback',
-      page: () => const AuthCallbackView(),
-    ),
+    GetPage(name: '/auth-callback', page: () => const AuthCallbackView()),
   ];
 }

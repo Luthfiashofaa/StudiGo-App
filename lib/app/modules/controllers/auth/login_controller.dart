@@ -65,11 +65,19 @@ class LoginController extends GetxController {
       // it so the UI can open it. Otherwise show a generic error.
       final msg = e.toString();
       if (msg.contains('Open this URL in a browser')) {
-        Get.snackbar('Open browser', msg,
-            backgroundColor: Colors.blueAccent, colorText: Colors.white);
+        Get.snackbar(
+          'Open browser',
+          msg,
+          backgroundColor: Colors.blueAccent,
+          colorText: Colors.white,
+        );
       } else {
-        Get.snackbar('Sign in error', msg,
-            backgroundColor: Colors.redAccent, colorText: Colors.white);
+        Get.snackbar(
+          'Sign in error',
+          msg,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
       }
     } finally {
       isLoading.value = false;
