@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth/login_controller.dart';
@@ -36,233 +35,308 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height;
     const primaryBlue = Color(0xFF0B61FF);
 
-    InputDecoration fieldDecoration(String label) => InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-    );
+    InputDecoration fieldDecoration(String label, bool isTablet) =>
+        InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20 : 16,
+            vertical: isTablet ? 18 : 14,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+        );
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: SizedBox(
-            height: height - MediaQuery.of(context).padding.top,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 8),
-                  // Logo
-                  Center(
-                    child: Image.asset(
-                      'assets/logo.png',
-                      width: 170,
-                      height: 170,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(height: 0),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
+            final bool isTablet = width >= 600;
+            final horizontalPadding = isTablet ? 32.0 : 24.0;
+            final titleSize = isTablet ? 36.0 : 30.0;
+            final descSize = isTablet ? 16.0 : 14.0;
+            final imageSize = isTablet ? 220.0 : 170.0;
 
-                  // Title
-                  const Text(
-                    'Sign in to your\nAccount',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Enter your email and password to login',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Email
-                  TextField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: fieldDecoration('Email'),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Password
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: fieldDecoration('Password'),
-                  ),
-                  const SizedBox(height: 50),
-
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        Get.to(
-                          () => const ForgotPasswordView(),
-                          binding: ForgotPasswordBinding(),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        foregroundColor: Colors.black,
-                        textStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isTablet ? 800 : double.infinity,
+                ),
+                child: ScrollConfiguration(
+                  behavior: _NoGlowScrollBehavior(),
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: height),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: horizontalPadding,
+                          vertical: 20,
                         ),
-                      ),
-                      child: const Text('Forgot Password?'),
-                    ),
-                  ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Top content
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const SizedBox(height: 8),
+                                // Logo
+                                Center(
+                                  child: Image.asset(
+                                    'assets/logo.png',
+                                    width: imageSize,
+                                    height: imageSize,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                const SizedBox(height: 0),
 
-                  const SizedBox(height: 8),
+                                // Title
+                                Text(
+                                  'Sign in to your\nAccount',
+                                  style: TextStyle(
+                                    fontSize: titleSize,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Enter your email and password to login',
+                                  style: TextStyle(
+                                    fontSize: descSize,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
 
-                  // Login button
-                  Obx(
-                    () => ElevatedButton(
-                      onPressed: controller.isLoading.value
-                          ? null
-                          : () {
-                              String email;
-                              String password;
-                              try {
-                                email = emailController.text;
-                              } catch (e) {
-                                // Controller was disposed unexpectedly; recover with empty string
-                                email = '';
-                                emailController = TextEditingController();
-                              }
-                              try {
-                                password = passwordController.text;
-                              } catch (e) {
-                                password = '';
-                                passwordController = TextEditingController();
-                              }
+                                // Email
+                                TextField(
+                                  controller: emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  decoration: fieldDecoration(
+                                    'Email',
+                                    isTablet,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
 
-                              controller.login(
-                                email: email,
-                                password: password,
-                              );
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryBlue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        minimumSize: const Size.fromHeight(52),
-                        elevation: 0,
-                      ),
-                      child: controller.isLoading.value
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Log in',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                                // Password
+                                TextField(
+                                  controller: passwordController,
+                                  obscureText: true,
+                                  decoration: fieldDecoration(
+                                    'Password',
+                                    isTablet,
+                                  ),
+                                ),
+                                const SizedBox(height: 50),
+
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Get.to(
+                                        () => const ForgotPasswordView(),
+                                        binding: ForgotPasswordBinding(),
+                                      );
+                                    },
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: const Size(0, 0),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      foregroundColor: Colors.black,
+                                      textStyle: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    child: const Text('Forgot Password?'),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                // Login button
+                                Obx(
+                                  () => ElevatedButton(
+                                    onPressed: controller.isLoading.value
+                                        ? null
+                                        : () {
+                                            String email;
+                                            String password;
+                                            try {
+                                              email = emailController.text;
+                                            } catch (e) {
+                                              // Controller was disposed unexpectedly; recover with empty string
+                                              email = '';
+                                              emailController =
+                                                  TextEditingController();
+                                            }
+                                            try {
+                                              password =
+                                                  passwordController.text;
+                                            } catch (e) {
+                                              password = '';
+                                              passwordController =
+                                                  TextEditingController();
+                                            }
+
+                                            controller.login(
+                                              email: email,
+                                              password: password,
+                                            );
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primaryBlue,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      minimumSize: Size.fromHeight(
+                                        isTablet ? 60 : 52,
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: controller.isLoading.value
+                                        ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Text(
+                                            'Log in',
+                                            style: TextStyle(
+                                              fontSize: isTablet ? 18 : 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 18),
+
+                                // Divider with Or
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Divider(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                    ),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                      ),
+                                      child: Text(
+                                        'Or',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Divider(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                // Google sign-in
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    controller.continueWithGoogle();
+                                  },
+                                  icon: Image.asset(
+                                    'assets/google.png',
+                                    width: 22,
+                                    height: 22,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  label: const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 14),
+                                    child: Text(
+                                      'Continue with Google',
+                                      style: TextStyle(color: Colors.black87),
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    backgroundColor: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 18),
-
-                  // Divider with Or
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('Or', style: TextStyle(color: Colors.grey)),
-                      ),
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                    ],
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Google sign-in
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      controller.continueWithGoogle();
-                    },
-                    icon: Image.asset(
-                      'assets/google.png',
-                      width: 22,
-                      height: 22,
-                      fit: BoxFit.contain,
-                    ),
-                    label: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      child: Text(
-                        'Continue with Google',
-                        style: TextStyle(color: Colors.black87),
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      backgroundColor: Colors.white,
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Bottom signup
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text("Don't have an account? "),
-                      TextButton(
-                        onPressed: () {
-                          // Navigate to RegisterView with its binding so controller is available
-                          Get.to(
-                            () => const RegisterView(),
-                            binding: RegisterBinding(),
-                          );
-                        },
-                        child: const Text(
-                          'Sign up',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: Colors.blueAccent,
-                          ),
+                            // Bottom signup
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text("Don't have an account? "),
+                                TextButton(
+                                  onPressed: () {
+                                    // Navigate to RegisterView with its binding so controller is available
+                                    Get.to(
+                                      () => const RegisterView(),
+                                      binding: RegisterBinding(),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Sign up',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.blueAccent,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
+  }
+}
+
+// Remove glow/overscroll indicator on Android to reduce visual wobble
+class _NoGlowScrollBehavior extends ScrollBehavior {
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
   }
 }
