@@ -168,6 +168,41 @@ class HomeView extends GetView<HomeController> {
 
                         const SizedBox(height: 40),
 
+                        // AI Suggestion Card - CLICKABLE
+              GestureDetector(
+                onTap: () => controller.openGeminiAI(),
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: Colors.amber),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AI menyarankan kamu fokus pada tugas \'Kalkulus\' hari ini',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Tap untuk buka Gemini AI',
+                              style: TextStyle(color: Colors.amber, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+
                         // Suggestion card
                         Container(
                           padding: const EdgeInsets.symmetric(
