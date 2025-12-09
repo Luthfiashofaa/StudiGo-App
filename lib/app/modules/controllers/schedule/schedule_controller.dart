@@ -1,7 +1,12 @@
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show AuthRetryableFetchException;
 
+import '../../../data/services/auth_persistence_service.dart';
 import '../../../data/services/supabase_service.dart';
+import '../../bindings/auth/login_binding.dart';
+import '../../views/auth/login_view.dart';
 
 class ScheduleController extends GetxController {
   ScheduleController({SupabaseService? supabase})
@@ -12,9 +17,21 @@ class ScheduleController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxList<Map<String, dynamic>> schedules = <Map<String, dynamic>>[].obs;
 
+  Future<void> _handleExpiredSession(String reason) async {
+    if (Get.isRegistered<AuthPersistenceService>()) {
+      await Get.find<AuthPersistenceService>().clearLoginState();
+    }
+    await _supabase.client.auth.signOut();
+    Get.offAll(() => const LoginView(), binding: LoginBinding());
+    throw Exception(reason);
+  }
+
   Future<void> fetchSchedules({DateTime? date}) async {
     final user = _supabase.currentUser;
-    if (user == null) throw Exception('User belum login.');
+    if (user == null) {
+      await _handleExpiredSession('User belum login.');
+      return;
+    }
 
     isLoading.value = true;
     try {
@@ -45,6 +62,10 @@ class ScheduleController extends GetxController {
       }
     } on PostgrestException catch (e) {
       throw Exception(e.message);
+    } on AuthRetryableFetchException catch (e) {
+      await _handleExpiredSession(
+        'Sesi auth kedaluwarsa, silakan login lagi. (${e.message})',
+      );
     } finally {
       isLoading.value = false;
     }
