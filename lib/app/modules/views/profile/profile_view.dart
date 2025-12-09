@@ -151,7 +151,7 @@ class ProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: controller.emailController,
+                  controller: ctrl.emailController,
                   readOnly: true,
                   keyboardType: TextInputType.emailAddress,
                   decoration: fieldDecoration(
@@ -166,7 +166,7 @@ class ProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: controller.firstNameController,
+                  controller: ctrl.firstNameController,
                   decoration: fieldDecoration('First Name'),
                 ),
 
@@ -177,7 +177,7 @@ class ProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: controller.lastNameController,
+                  controller: ctrl.lastNameController,
                   decoration: fieldDecoration('Last Name'),
                 ),
 
@@ -188,10 +188,10 @@ class ProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 8),
                 GestureDetector(
-                  onTap: () => controller.pickDate(context),
+                  onTap: () => ctrl.pickDate(context),
                   child: AbsorbPointer(
                     child: TextField(
-                      controller: controller.dobController,
+                      controller: ctrl.dobController,
                       decoration: fieldDecoration('Date of Birth'),
                     ),
                   ),
@@ -216,6 +216,7 @@ class ProfileView extends GetView<ProfileController> {
                       child: Center(
                         child: CountryCodePicker(
                           onChanged: (country) => controller.setCountry(
+                            // Country selection updates controller state for dial code + display
                             country.code ?? 'ID',
                             country.dialCode ?? '+62',
                           ),
@@ -229,7 +230,7 @@ class ProfileView extends GetView<ProfileController> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
-                        controller: controller.phoneController,
+                        controller: ctrl.phoneController,
                         keyboardType: TextInputType.phone,
                         decoration: fieldDecoration('Phone Number'),
                       ),
@@ -240,11 +241,9 @@ class ProfileView extends GetView<ProfileController> {
                 const SizedBox(height: 20),
                 Obx(
                   () => ElevatedButton(
-                    onPressed:
-                        (controller.isSaving.value ||
-                            !controller.hasChanges.value)
+                    onPressed: (ctrl.isSaving.value || !ctrl.hasChanges.value)
                         ? null
-                        : controller.saveProfile,
+                        : ctrl.saveProfile,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryBlue,
                       foregroundColor: const Color.fromARGB(255, 255, 255, 255),
@@ -253,7 +252,7 @@ class ProfileView extends GetView<ProfileController> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: controller.isSaving.value
+                    child: ctrl.isSaving.value
                         ? const SizedBox(
                             height: 20,
                             width: 20,
@@ -274,7 +273,7 @@ class ProfileView extends GetView<ProfileController> {
 
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: controller.logout,
+                  onPressed: ctrl.logout,
                   style: OutlinedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 255, 255, 255),
                     shape: RoundedRectangleBorder(
