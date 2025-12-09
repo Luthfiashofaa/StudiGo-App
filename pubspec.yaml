@@ -43,6 +43,8 @@ dependencies:
   http: ^0.13.6
   app_links: ^6.4.1
   url_launcher: ^6.1.7
+  android_intent_plus: ^4.0.3
+  url_launcher: ^6.2.2
 
 dev_dependencies:
   flutter_test:
