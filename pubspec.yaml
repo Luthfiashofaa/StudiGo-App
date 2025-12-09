@@ -45,6 +45,7 @@ dependencies:
   url_launcher: ^6.1.7
   android_intent_plus: ^4.0.3
   url_launcher: ^6.2.2
+  shared_preferences: ^2.2.0
 
 dev_dependencies:
   flutter_test:

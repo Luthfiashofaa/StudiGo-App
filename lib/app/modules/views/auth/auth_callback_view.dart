@@ -132,78 +132,120 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Auth Callback')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Received deep link URI',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              SelectableText(uri),
-              const SizedBox(height: 16),
-              const Text(
-                'Query parameters',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ...query.entries.map((e) => Text('${e.key}: ${e.value}')),
-              const SizedBox(height: 16),
-              const Text(
-                'Fragment (raw)',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(fragment.isEmpty ? '(none)' : fragment),
-              const SizedBox(height: 16),
-              const Text(
-                'Fragment parsed',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ...fragmentMap.entries.map((e) => Text('${e.key}: ${e.value}')),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Close debug view
-                        Get.back();
-                      },
-                      child: const Text('Close'),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final bool isTablet = width >= 600;
+          final horizontalPadding = isTablet ? 24.0 : 16.0;
+          final headingStyle = TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: isTablet ? 18 : 14,
+          );
+          final contentTextStyle = TextStyle(fontSize: isTablet ? 16 : 14);
+
+          Widget buildHeading(String text) => Text(text, style: headingStyle);
+
+          final closeButton = ElevatedButton(
+            onPressed: () {
+              Get.back();
+            },
+            child: const Text('Close'),
+          );
+
+          final completeButton = ElevatedButton(
+            onPressed: _processing
+                ? null
+                : () async {
+                    await _attemptCompleteSignIn(
+                      Map<String, String>.from(fragmentMap),
+                    );
+                  },
+            child: _processing
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _processing
-                          ? null
-                          : () async {
-                              await _attemptCompleteSignIn(
-                                Map<String, String>.from(fragmentMap),
-                              );
-                            },
-                      child: _processing
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Complete sign-in'),
-                    ),
-                  ),
-                ],
+                  )
+                : const Text('Complete sign-in'),
+          );
+
+          final actions = isTablet
+              ? Row(
+                  children: [
+                    Expanded(child: closeButton),
+                    const SizedBox(width: 12),
+                    Expanded(child: completeButton),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    closeButton,
+                    const SizedBox(height: 12),
+                    completeButton,
+                  ],
+                );
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: isTablet ? 800 : double.infinity,
               ),
-            ],
-          ),
-        ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: 16,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      buildHeading('Received deep link URI'),
+                      const SizedBox(height: 8),
+                      SelectableText(uri, style: contentTextStyle),
+                      const SizedBox(height: 16),
+                      buildHeading('Query parameters'),
+                      const SizedBox(height: 8),
+                      if (query.isEmpty)
+                        Text('(none)', style: contentTextStyle)
+                      else
+                        ...query.entries.map(
+                          (e) => Text(
+                            '${e.key}: ${e.value}',
+                            style: contentTextStyle,
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      buildHeading('Fragment (raw)'),
+                      const SizedBox(height: 8),
+                      Text(
+                        fragment.isEmpty ? '(none)' : fragment,
+                        style: contentTextStyle,
+                      ),
+                      const SizedBox(height: 16),
+                      buildHeading('Fragment parsed'),
+                      const SizedBox(height: 8),
+                      if (fragmentMap.isEmpty)
+                        Text('(none)', style: contentTextStyle)
+                      else
+                        ...fragmentMap.entries.map(
+                          (e) => Text(
+                            '${e.key}: ${e.value}',
+                            style: contentTextStyle,
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                      actions,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

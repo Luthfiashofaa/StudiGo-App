@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../data/services/supabase_service.dart';
+import '../../../data/services/auth_persistence_service.dart';
 import '../../bindings/auth/login_binding.dart';
 import '../../views/auth/login_view.dart';
 
@@ -17,9 +22,29 @@ class ProfileController extends GetxController {
   String countryCode = 'ID';
   String countryDialCode = '+62';
   String? avatarPath;
+  String? avatarUrl;
+  String? _profileId;
+
+  // Lazy getter to avoid null during initialization
+  late final SupabaseService _supabase = Get.find<SupabaseService>();
+
+  final RxBool isSaving = false.obs;
+  final RxBool isLoadingProfile = false.obs;
+  final RxBool hasChanges = false.obs;
+
+  // store original loaded values to detect changes
+  final Map<String, dynamic> _original = {};
+
+  @override
+  void onInit() {
+    super.onInit();
+    _attachListeners();
+    fetchProfile();
+  }
 
   @override
   void onClose() {
+    _removeListeners();
     emailController.dispose();
     firstNameController.dispose();
     lastNameController.dispose();
@@ -28,23 +53,65 @@ class ProfileController extends GetxController {
     super.onClose();
   }
 
+  void _attachListeners() {
+    emailController.addListener(_checkChanges);
+    firstNameController.addListener(_checkChanges);
+    lastNameController.addListener(_checkChanges);
+    dobController.addListener(_checkChanges);
+    phoneController.addListener(_checkChanges);
+  }
+
+  void _removeListeners() {
+    emailController.removeListener(_checkChanges);
+    firstNameController.removeListener(_checkChanges);
+    lastNameController.removeListener(_checkChanges);
+    dobController.removeListener(_checkChanges);
+    phoneController.removeListener(_checkChanges);
+  }
+
+  void _checkChanges() {
+    final email = emailController.text.trim();
+    final first = firstNameController.text.trim();
+    final last = lastNameController.text.trim();
+    final phone = phoneController.text.trim();
+    final dob = birthDate?.toIso8601String() ?? '';
+    final countryC = countryCode;
+    final countryD = countryDialCode;
+
+    bool changed = false;
+
+    if ((_original['email'] ?? '') != email) changed = true;
+    if ((_original['first_name'] ?? '') != first) changed = true;
+    if ((_original['last_name'] ?? '') != last) changed = true;
+    if ((_original['phone'] ?? '') != phone) changed = true;
+    if ((_original['dob'] ?? '') != dob) changed = true;
+    if ((_original['country_code'] ?? '') != countryC) changed = true;
+    if ((_original['country_dial_code'] ?? '') != countryD) changed = true;
+
+    // avatarPath indicates a new local image that hasn't been uploaded yet
+    if (avatarPath != null) changed = true;
+
+    hasChanges.value = changed;
+  }
+
   void setBirthDate(DateTime date) {
     birthDate = date;
     dobController.text = _formatDate(date);
     update();
+    _checkChanges();
   }
 
   void setCountry(String code, String dialCode) {
     countryCode = code;
     countryDialCode = dialCode;
     update();
+    _checkChanges();
   }
 
   String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')} - ${d.month.toString().padLeft(2, '0')} - ${d.year}';
 
   Future<void> pickImage(ImageSource source) async {
-    // Request runtime permissions first
     try {
       if (source == ImageSource.camera) {
         final status = await Permission.camera.request();
@@ -90,9 +157,308 @@ class ProfileController extends GetxController {
       if (picked != null) {
         avatarPath = picked.path;
         update();
+        _checkChanges();
       }
     } catch (e) {
       Get.snackbar('Error', 'Unable to pick image: ${e.toString()}');
+    }
+  }
+
+  Future<void> fetchProfile() async {
+    final user = _supabase.currentUser;
+    if (user == null) return;
+
+    isLoadingProfile.value = true;
+    try {
+      // Primary: try fetching from `users` table by user ID (sesuai gambar)
+      final usersRes = await _supabase
+          .from('users')
+          .select()
+          .eq('id', user.id)
+          .limit(1);
+      if (usersRes != null && usersRes is List && usersRes.isNotEmpty) {
+        final u = Map<String, dynamic>.from(usersRes[0]);
+        _profileId = u['id']?.toString();
+        emailController.text = u['email']?.toString() ?? user.email ?? '';
+
+        // Parse `name` field (jika ada) atau gunakan `firstname`/`lastname` terpisah
+        String firstName = '';
+        String lastName = '';
+
+        final nameFull = u['name']?.toString() ?? '';
+        if (nameFull.isNotEmpty) {
+          final parts = nameFull.split(' ');
+          firstName = parts.isNotEmpty ? parts[0] : '';
+          lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+        } else {
+          firstName = u['firstname']?.toString() ?? '';
+          lastName = u['lastname']?.toString() ?? '';
+        }
+
+        firstNameController.text = firstName;
+        lastNameController.text = lastName;
+        phoneController.text = u['phone_number']?.toString() ?? '';
+        avatarUrl = u['photo_url']?.toString() ?? '';
+
+        final dobRaw = u['birthdate']?.toString();
+        if (dobRaw != null && dobRaw.isNotEmpty) {
+          final dt = DateTime.tryParse(dobRaw);
+          if (dt != null) setBirthDate(dt);
+          _original['dob'] = dt?.toIso8601String() ?? '';
+        }
+
+        _original['email'] = emailController.text.trim();
+        _original['first_name'] = firstNameController.text.trim();
+        _original['last_name'] = lastNameController.text.trim();
+        _original['phone'] = phoneController.text.trim();
+        _original['country_code'] = countryCode;
+        _original['country_dial_code'] = countryDialCode;
+        _original['avatar_url'] = avatarUrl ?? '';
+
+        hasChanges.value = false;
+        update();
+        return;
+      }
+
+      // Fallback: fetch dari `users` table by email jika id tidak cocok
+      final String userEmail = user.email ?? '';
+      if (userEmail.isNotEmpty) {
+        final usersResEmail = await _supabase
+            .from('users')
+            .select()
+            .eq('email', userEmail)
+            .limit(1);
+        if (usersResEmail != null &&
+            usersResEmail is List &&
+            usersResEmail.isNotEmpty) {
+          final u = Map<String, dynamic>.from(usersResEmail[0]);
+          _profileId = u['id']?.toString();
+          emailController.text = u['email']?.toString() ?? user.email ?? '';
+
+          String firstName = '';
+          String lastName = '';
+          final nameFull = u['name']?.toString() ?? '';
+          if (nameFull.isNotEmpty) {
+            final parts = nameFull.split(' ');
+            firstName = parts.isNotEmpty ? parts[0] : '';
+            lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+          } else {
+            firstName = u['firstname']?.toString() ?? '';
+            lastName = u['lastname']?.toString() ?? '';
+          }
+
+          firstNameController.text = firstName;
+          lastNameController.text = lastName;
+          phoneController.text = u['phone_number']?.toString() ?? '';
+          avatarUrl = u['photo_url']?.toString() ?? '';
+
+          final dobRaw = u['birthdate']?.toString();
+          if (dobRaw != null && dobRaw.isNotEmpty) {
+            final dt = DateTime.tryParse(dobRaw);
+            if (dt != null) setBirthDate(dt);
+            _original['dob'] = dt?.toIso8601String() ?? '';
+          }
+
+          _original['email'] = emailController.text.trim();
+          _original['first_name'] = firstNameController.text.trim();
+          _original['last_name'] = lastNameController.text.trim();
+          _original['phone'] = phoneController.text.trim();
+          _original['country_code'] = countryCode;
+          _original['country_dial_code'] = countryDialCode;
+          _original['avatar_url'] = avatarUrl ?? '';
+
+          hasChanges.value = false;
+          update();
+          return;
+        }
+      }
+
+      // Final fallback: gunakan auth metadata saja
+      final meta = user.userMetadata ?? <String, dynamic>{};
+      emailController.text = user.email ?? '';
+      firstNameController.text =
+          (meta['firstname'] ?? meta['first_name'] ?? meta['given_name'] ?? '')
+              ?.toString() ??
+          '';
+      lastNameController.text =
+          (meta['lastname'] ?? meta['last_name'] ?? meta['family_name'] ?? '')
+              ?.toString() ??
+          '';
+      phoneController.text =
+          (meta['phone_number'] ?? meta['phone'] ?? '')?.toString() ?? '';
+      avatarUrl =
+          (meta['photo_url'] ?? meta['photoUrl'] ?? '')?.toString() ?? '';
+
+      final dobRawMeta =
+          (meta['birthdate'] ?? meta['dob'] ?? meta['date_of_birth'])
+              ?.toString();
+      if (dobRawMeta != null && dobRawMeta.isNotEmpty) {
+        final dt = DateTime.tryParse(dobRawMeta);
+        if (dt != null) setBirthDate(dt);
+        _original['dob'] = dt?.toIso8601String() ?? '';
+      }
+
+      _original['email'] = emailController.text.trim();
+      _original['first_name'] = firstNameController.text.trim();
+      _original['last_name'] = lastNameController.text.trim();
+      _original['phone'] = phoneController.text.trim();
+      _original['country_code'] = countryCode;
+      _original['country_dial_code'] = countryDialCode;
+      _original['avatar_url'] = avatarUrl ?? '';
+
+      hasChanges.value = false;
+      update();
+    } catch (e) {
+      debugPrint('fetchProfile error: $e');
+    } finally {
+      isLoadingProfile.value = false;
+    }
+  }
+
+  Future<String?> _uploadAvatarIfNeeded() async {
+    if (avatarPath == null) {
+      debugPrint(
+        '_uploadAvatarIfNeeded: avatarPath is null, returning existing avatarUrl = $avatarUrl',
+      );
+      return avatarUrl;
+    }
+
+    final user = _supabase.currentUser;
+    if (user == null) {
+      debugPrint('_uploadAvatarIfNeeded: user is null, cannot upload');
+      return null;
+    }
+
+    try {
+      final file = File(avatarPath!);
+      final exists = await file.exists();
+      debugPrint(
+        '_uploadAvatarIfNeeded: avatarPath = $avatarPath, exists = $exists',
+      );
+
+      if (!exists) {
+        debugPrint('_uploadAvatarIfNeeded: File does not exist at $avatarPath');
+        return avatarUrl;
+      }
+
+      final ext = avatarPath!.split('.').last;
+      final path = 'avatars/${user.id}.$ext';
+      debugPrint('_uploadAvatarIfNeeded: Uploading to $path');
+
+      await _supabase.storage
+          .from('avatars')
+          .upload(path, file, fileOptions: const FileOptions(upsert: true));
+
+      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(path);
+      debugPrint(
+        '_uploadAvatarIfNeeded: Upload successful, publicUrl = $publicUrl',
+      );
+
+      avatarUrl = publicUrl?.toString();
+      _original['avatar_url'] = avatarUrl ?? '';
+      avatarPath = null; // Clear the path after upload
+      return avatarUrl;
+    } catch (e) {
+      debugPrint('_uploadAvatarIfNeeded: Error - $e');
+      return avatarUrl;
+    }
+  }
+
+  Future<void> saveProfile() async {
+    final user = _supabase.currentUser;
+    if (user == null) throw Exception('User belum login.');
+
+    isSaving.value = true;
+    try {
+      debugPrint('saveProfile: Starting save for user ${user.id}');
+      debugPrint('saveProfile: avatarPath = $avatarPath');
+
+      final uploadedAvatar = await _uploadAvatarIfNeeded();
+      debugPrint('saveProfile: uploadedAvatar = $uploadedAvatar');
+
+      // Gabung firstName + lastName menjadi `name` untuk tabel `users`
+      final fullName =
+          '${firstNameController.text.trim()} ${lastNameController.text.trim()}'
+              .trim();
+
+      final payload = {
+        'email': emailController.text.trim(),
+        'name': fullName,
+        'firstname': firstNameController.text.trim(),
+        'lastname': lastNameController.text.trim(),
+        'birthdate': birthDate?.toIso8601String(),
+        'phone_number': phoneController.text.trim(),
+        'photo_url': uploadedAvatar,
+        'updated_at': DateTime.now().toIso8601String(),
+      }..removeWhere((k, v) => v == null);
+
+      debugPrint('saveProfile: payload = $payload');
+      debugPrint('saveProfile: _profileId = $_profileId');
+
+      if (_profileId != null) {
+        final id = _profileId!;
+        debugPrint('saveProfile: Updating existing user with id=$id');
+        await _supabase.from('users').update(payload).eq('id', id);
+        _original['email'] = payload['email'] ?? _original['email'];
+        _original['first_name'] =
+            payload['firstname'] ?? _original['first_name'];
+        _original['last_name'] = payload['lastname'] ?? _original['last_name'];
+        _original['phone'] = payload['phone_number'] ?? _original['phone'];
+        _original['dob'] = payload['birthdate'] ?? _original['dob'];
+        _original['country_code'] =
+            payload['country_code'] ?? _original['country_code'];
+        _original['country_dial_code'] =
+            payload['country_dial_code'] ?? _original['country_dial_code'];
+        _original['avatar_url'] = uploadedAvatar ?? _original['avatar_url'];
+      } else {
+        debugPrint('saveProfile: Inserting new user with id=${user.id}');
+        payload['id'] = user.id;
+        final res = await _supabase.from('users').insert(payload);
+        debugPrint('saveProfile: Insert response = $res');
+        if (res != null && res is List && res.isNotEmpty) {
+          _profileId = res[0]['id']?.toString();
+          _original['email'] = payload['email'] ?? '';
+          _original['first_name'] = payload['firstname'] ?? '';
+          _original['last_name'] = payload['lastname'] ?? '';
+          _original['phone'] = payload['phone_number'] ?? '';
+          _original['dob'] = payload['birthdate'] ?? '';
+          _original['country_code'] = payload['country_code'] ?? '';
+          _original['country_dial_code'] = payload['country_dial_code'] ?? '';
+          _original['avatar_url'] = uploadedAvatar ?? '';
+        }
+      }
+
+      Get.snackbar(
+        'Sukses',
+        'Profil disimpan',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } on PostgrestException catch (e) {
+      debugPrint('saveProfile: PostgrestException - ${e.message}');
+      Get.snackbar('Gagal', e.message ?? e.toString());
+    } catch (e) {
+      debugPrint('saveProfile: Error - $e');
+      Get.snackbar('Gagal', e.toString());
+    } finally {
+      isSaving.value = false;
+      hasChanges.value = false;
+    }
+  }
+
+  Future<void> deleteProfile() async {
+    final user = _supabase.currentUser;
+    if (user == null) throw Exception('User belum login.');
+
+    if (_profileId == null) return;
+    try {
+      final id = _profileId!;
+      await _supabase.from('users').delete().eq('id', id);
+      _profileId = null;
+      _original.clear();
+      hasChanges.value = false;
+      update();
+    } catch (e) {
+      Get.snackbar('Gagal', 'Tidak dapat menghapus profil: $e');
     }
   }
 
@@ -118,7 +484,6 @@ class ProfileController extends GetxController {
   }
 
   void updateProfile() {
-    // TODO: send profile update to API
     Get.snackbar(
       'Success',
       'Profile updated',
@@ -126,8 +491,19 @@ class ProfileController extends GetxController {
     );
   }
 
-  void logout() {
-    // Navigate to login and clear stack
-    Get.offAll(() => const LoginView(), binding: LoginBinding());
+  void logout() async {
+    try {
+      // Clear SharedPreferences login state
+      final authPersistence = Get.find<AuthPersistenceService>();
+      await authPersistence.clearLoginState();
+
+      // Sign out from Supabase
+      await _supabase.client.auth.signOut();
+
+      // Navigate to Login
+      Get.offAll(() => const LoginView(), binding: LoginBinding());
+    } catch (e) {
+      Get.snackbar('Error', 'Logout failed: ${e.toString()}');
+    }
   }
 }
