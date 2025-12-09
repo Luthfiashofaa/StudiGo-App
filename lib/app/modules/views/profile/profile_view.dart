@@ -152,8 +152,11 @@ class ProfileView extends GetView<ProfileController> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: controller.emailController,
+                  readOnly: true,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: fieldDecoration('Email'),
+                  decoration: fieldDecoration(
+                    'Email',
+                  ).copyWith(filled: true, fillColor: Colors.grey.shade100),
                 ),
 
                 const SizedBox(height: 12),

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../views/shell/app_shell.dart';
 import '../../bindings/shell/app_shell_binding.dart';
 import '../../../data/providers/auth_provider.dart';
+import '../../../data/services/auth_persistence_service.dart';
 // AppShell is used as the shared UI shell with bottom navigation.
 
 class LoginController extends GetxController {
@@ -29,6 +30,10 @@ class LoginController extends GetxController {
 
       final user = res.user;
       if (user != null) {
+        // Save login state to SharedPreferences
+        final authPersistence = Get.find<AuthPersistenceService>();
+        await authPersistence.saveLoginState(user.id, user.email ?? e);
+
         // Successful login. Navigate to the main shell.
         Get.off(() => const AppShell(), binding: AppShellBinding());
       } else {
@@ -60,16 +65,30 @@ class LoginController extends GetxController {
     try {
       final authProvider = Get.find<AuthProvider>();
       await authProvider.signInWithGoogle();
+
+      // Get current user after OAuth login
+      final supabaseService = Get.find<AuthProvider>();
+      // Note: OAuth login may require checking Supabase auth state
+      // For now, we'll assume the user is available after signInWithGoogle completes
+      // The app shell should handle the navigation and profile fetch
     } catch (e) {
       // If the provider returned an authorize URL (via exception), surface
       // it so the UI can open it. Otherwise show a generic error.
       final msg = e.toString();
       if (msg.contains('Open this URL in a browser')) {
-        Get.snackbar('Open browser', msg,
-            backgroundColor: Colors.blueAccent, colorText: Colors.white);
+        Get.snackbar(
+          'Open browser',
+          msg,
+          backgroundColor: Colors.blueAccent,
+          colorText: Colors.white,
+        );
       } else {
-        Get.snackbar('Sign in error', msg,
-            backgroundColor: Colors.redAccent, colorText: Colors.white);
+        Get.snackbar(
+          'Sign in error',
+          msg,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
       }
     } finally {
       isLoading.value = false;

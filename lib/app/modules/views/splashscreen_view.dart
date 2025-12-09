@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:studigo/app/modules/views/auth/login_view.dart';
+import 'package:studigo/app/modules/views/home/home_view.dart';
 import 'package:studigo/app/modules/bindings/auth/login_binding.dart';
+import 'package:studigo/app/modules/bindings/home/home_binding.dart';
+import 'package:studigo/app/data/services/auth_persistence_service.dart';
 import 'dart:async';
 
 class SplashScreen extends StatefulWidget {
@@ -15,9 +18,28 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
-      Get.off(() => LoginView(), binding: LoginBinding());
-    });
+    _checkAuthAndNavigate();
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    // Get AuthPersistenceService to check login state
+    final authPersistence = Get.find<AuthPersistenceService>();
+    final isLoggedIn = authPersistence.isLoggedIn();
+
+    if (mounted) {
+      // Delay untuk menunjukkan splash screen selama 3 detik total
+      Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          if (isLoggedIn) {
+            // User sudah login (ada di SharedPreferences), ke Home
+            Get.off(() => const HomeView(), binding: HomeBinding());
+          } else {
+            // User belum login, ke Login
+            Get.off(() => LoginView(), binding: LoginBinding());
+          }
+        }
+      });
+    }
   }
 
   @override
