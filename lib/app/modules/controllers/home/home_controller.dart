@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
 import '../../../data/services/supabase_service.dart';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeController extends GetxController {
   final _supabaseService = Get.find<SupabaseService>();
@@ -74,7 +76,37 @@ class HomeController extends GetxController {
       isLoadingUser.value = false;
     }
   }
+
+  // Fungsi untuk buka Gemini AI
+  Future<void> openGeminiAI() async {
+    try {
+      // Coba buka aplikasi Gemini
+      final intent = AndroidIntent(
+        action: 'android.intent.action.MAIN',
+        package: 'com.google.android.apps.bard',
+      );
+    } catch (e) {
+      print('Error: $e');
+      openGeminiInBrowser();
+    }
+  }
   
+  Future<void> openGeminiInBrowser() async {
+    final url = Uri.parse('https://gemini.google.com');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+  
+  Future<void> openPlayStore() async {
+    final url = Uri.parse('https://play.google.com/store/apps/details?id=com.google.android.apps.bard');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+  
+
+
   // Mengambil tugas hari ini dari Supabase
   Future<void> _loadTodayTasks() async {
     try {
