@@ -30,9 +30,14 @@ class ProfileView extends GetView<ProfileController> {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       child: GetBuilder<ProfileController>(
+        init: ProfileController(),
         builder: (ctrl) {
+          final c = ctrl;
+          if (c == null) {
+            return const SizedBox();
+          }
           return Obx(() {
-            if (ctrl.isLoadingProfile.value) {
+            if (c.isLoadingProfile.value) {
               return const SizedBox(
                 height: 240,
                 child: Center(child: CircularProgressIndicator()),
@@ -64,16 +69,16 @@ class ProfileView extends GetView<ProfileController> {
                         ),
                         child: ClipOval(
                           child: () {
-                            if (ctrl.avatarPath != null) {
+                            if (c.avatarPath != null) {
                               return Image.file(
-                                File(ctrl.avatarPath!),
+                                File(c.avatarPath!),
                                 fit: BoxFit.cover,
                               );
                             }
-                            if (ctrl.avatarUrl != null &&
-                                ctrl.avatarUrl!.isNotEmpty) {
+                            if (c.avatarUrl != null &&
+                                c.avatarUrl!.isNotEmpty) {
                               return Image.network(
-                                ctrl.avatarUrl!,
+                                c.avatarUrl!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Image.asset(
                                   'assets/avatar_placeholder.png',
@@ -102,9 +107,7 @@ class ProfileView extends GetView<ProfileController> {
                                       leading: const Icon(Icons.photo_library),
                                       title: const Text('Choose from gallery'),
                                       onTap: () {
-                                        controller.pickImage(
-                                          ImageSource.gallery,
-                                        );
+                                        c.pickImage(ImageSource.gallery);
                                         Navigator.of(ctx).pop();
                                       },
                                     ),
@@ -112,9 +115,7 @@ class ProfileView extends GetView<ProfileController> {
                                       leading: const Icon(Icons.camera_alt),
                                       title: const Text('Take a photo'),
                                       onTap: () {
-                                        controller.pickImage(
-                                          ImageSource.camera,
-                                        );
+                                        c.pickImage(ImageSource.camera);
                                         Navigator.of(ctx).pop();
                                       },
                                     ),
@@ -151,7 +152,7 @@ class ProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: ctrl.emailController,
+                  controller: c.emailController,
                   readOnly: true,
                   keyboardType: TextInputType.emailAddress,
                   decoration: fieldDecoration(
@@ -166,7 +167,7 @@ class ProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: ctrl.firstNameController,
+                  controller: c.firstNameController,
                   decoration: fieldDecoration('First Name'),
                 ),
 
@@ -177,7 +178,7 @@ class ProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: ctrl.lastNameController,
+                  controller: c.lastNameController,
                   decoration: fieldDecoration('Last Name'),
                 ),
 
@@ -188,10 +189,10 @@ class ProfileView extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 8),
                 GestureDetector(
-                  onTap: () => ctrl.pickDate(context),
+                  onTap: () => c.pickDate(context),
                   child: AbsorbPointer(
                     child: TextField(
-                      controller: ctrl.dobController,
+                      controller: c.dobController,
                       decoration: fieldDecoration('Date of Birth'),
                     ),
                   ),
@@ -215,12 +216,12 @@ class ProfileView extends GetView<ProfileController> {
                       ),
                       child: Center(
                         child: CountryCodePicker(
-                          onChanged: (country) => controller.setCountry(
+                          onChanged: (country) => c.setCountry(
                             // Country selection updates controller state for dial code + display
                             country.code ?? 'ID',
                             country.dialCode ?? '+62',
                           ),
-                          initialSelection: ctrl.countryCode,
+                          initialSelection: c.countryCode,
                           favorite: const ['+62', 'US'],
                           showOnlyCountryWhenClosed: false,
                           alignLeft: false,
@@ -230,7 +231,7 @@ class ProfileView extends GetView<ProfileController> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
-                        controller: ctrl.phoneController,
+                        controller: c.phoneController,
                         keyboardType: TextInputType.phone,
                         decoration: fieldDecoration('Phone Number'),
                       ),
@@ -241,18 +242,18 @@ class ProfileView extends GetView<ProfileController> {
                 const SizedBox(height: 20),
                 Obx(
                   () => ElevatedButton(
-                    onPressed: (ctrl.isSaving.value || !ctrl.hasChanges.value)
+                    onPressed: (c.isSaving.value || !c.hasChanges.value)
                         ? null
-                        : ctrl.saveProfile,
+                        : c.saveProfile,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryBlue,
-                      foregroundColor: const Color.fromARGB(255, 255, 255, 255),
+                      foregroundColor: Colors.white,
                       minimumSize: const Size.fromHeight(52),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: ctrl.isSaving.value
+                    child: c.isSaving.value
                         ? const SizedBox(
                             height: 20,
                             width: 20,
@@ -273,7 +274,7 @@ class ProfileView extends GetView<ProfileController> {
 
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: ctrl.logout,
+                  onPressed: c.logout,
                   style: OutlinedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 255, 255, 255),
                     shape: RoundedRectangleBorder(
