@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app/routes/app_pages.dart';
 import 'app/data/services/supabase_service.dart';
+import 'app/data/services/auth_persistence_service.dart';
 import 'app/data/providers/auth_provider.dart';
 import 'app/data/services/deeplink_service.dart';
 
@@ -26,6 +27,11 @@ Future<void> main() async {
     // ignore: avoid_print
     debugPrint('dotenv.load() warning: $e');
   }
+
+  // Initialize AuthPersistenceService (SharedPreferences)
+  final authPersistence = AuthPersistenceService();
+  await authPersistence.init();
+  Get.put(authPersistence);
 
   // Initialize SupabaseService (loads .env and initializes client)
   await Get.putAsync(() => SupabaseService().init());

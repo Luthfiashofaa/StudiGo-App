@@ -105,8 +105,32 @@ class HomeView extends GetView<HomeController> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Obx(() {
+                              // Tampilkan loading atau nama user
+                              if (controller.isLoadingUser.value) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text(
+                                      'Halo!',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        color: Colors.black,
+                                        fontFamily: 'LieblingMedium',
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    SizedBox(
+                                      width: 100,
+                                      height: 24,
+                                      child: LinearProgressIndicator(),
+                                    ),
+                                  ],
+                                );
+                              }
+                              
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
                                     'Halo!',
@@ -117,16 +141,17 @@ class HomeView extends GetView<HomeController> {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  const Text(
-                                    'Lois Becket',
-                                    style: TextStyle(
+                                  Text(
+                                    controller.userName.value,
+                                    style: const TextStyle(
                                       fontSize: 24,
                                       fontFamily: 'LieblingBold',
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ],
-                            ),
+                              );
+                            }),
                           ],
                         ),
 
@@ -142,6 +167,41 @@ class HomeView extends GetView<HomeController> {
                         ),
 
                         const SizedBox(height: 40),
+
+                        // AI Suggestion Card - CLICKABLE
+              GestureDetector(
+                onTap: () => controller.openGeminiAI(),
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: Colors.amber),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AI menyarankan kamu fokus pada tugas \'Kalkulus\' hari ini',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Tap untuk buka Gemini AI',
+                              style: TextStyle(color: Colors.amber, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
 
                         // Suggestion card
                         Container(
@@ -231,34 +291,34 @@ class HomeView extends GetView<HomeController> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Row(
+                              Obx(() => Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
-                                children: const [
-                                  Text(
+                                children: [
+                                  const Text(
                                     'Dari target harian yang tercapai',
                                     style: TextStyle(color: Colors.black54),
                                   ),
                                   Text(
-                                    '65%',
-                                    style: TextStyle(
+                                    '${controller.progressPercentage}%',
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],
-                              ),
+                              )),
                               const SizedBox(height: 12),
-                              ClipRRect(
+                              Obx(() => ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: LinearProgressIndicator(
                                   minHeight: 10,
-                                  value: 0.65,
+                                  value: controller.progressValue,
                                   backgroundColor: Colors.grey.shade300,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                  valueColor: const AlwaysStoppedAnimation<Color>(
                                     Colors.blue,
                                   ),
                                 ),
-                              ),
+                              )),
                             ],
                           ),
                         ),
@@ -275,16 +335,42 @@ class HomeView extends GetView<HomeController> {
 
                         const SizedBox(height: 12),
 
-                        Column(
-                          children: const [
-                            _TaskCard(icon: Icons.calculate, title: 'Kalkulus'),
-                            SizedBox(height: 12),
-                            _TaskCard(
-                              icon: Icons.code,
-                              title: 'Basic Programming',
+                        Obx(() {
+                          if (controller.todayTasks.isEmpty) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(20.0),
+                                child: Text(
+                                  'Tidak ada tugas hari ini',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          
+                          return Column(
+                            children: List.generate(
+                              controller.todayTasks.length,
+                              (index) {
+                                final task = controller.todayTasks[index];
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: index < controller.todayTasks.length - 1 ? 12 : 0,
+                                  ),
+                                  child: _TaskCard(
+                                    icon: _getIconForTask(task['title'] ?? 'Task'),
+                                    title: task['title'] ?? 'Task ${index + 1}',
+                                    isCompleted: task['isCompleted'] ?? false,
+                                    onToggle: () => controller.toggleTaskCompletion(index),
+                                  ),
+                                );
+                              },
                             ),
-                          ],
-                        ),
+                          );
+                        }),
 
                         // space reserved by padding at the scrollview bottom for AppShell's nav
                       ],
@@ -300,24 +386,19 @@ class HomeView extends GetView<HomeController> {
   }
 }
 
-class _TaskCard extends StatefulWidget {
+class _TaskCard extends StatelessWidget {
   final IconData icon;
   final String title;
-  const _TaskCard({Key? key, required this.icon, required this.title})
-    : super(key: key);
-
-  @override
-  State<_TaskCard> createState() => _TaskCardState();
-}
-
-class _TaskCardState extends State<_TaskCard> {
-  late bool _checked;
-
-  @override
-  void initState() {
-    super.initState();
-    _checked = false;
-  }
+  final bool isCompleted;
+  final VoidCallback onToggle;
+  
+  const _TaskCard({
+    Key? key,
+    required this.icon,
+    required this.title,
+    required this.isCompleted,
+    required this.onToggle,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -345,25 +426,48 @@ class _TaskCardState extends State<_TaskCard> {
               color: Colors.blue.shade50,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(widget.icon, color: Colors.blue, size: 22),
+            child: Icon(icon, color: Colors.blue, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              widget.title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                decoration: isCompleted ? TextDecoration.lineThrough : null,
+                color: isCompleted ? Colors.grey : Colors.black,
+              ),
             ),
           ),
           IconButton(
-            onPressed: () => setState(() => _checked = !_checked),
+            onPressed: onToggle,
             icon: Icon(
-              _checked ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: _checked ? Colors.blue : Colors.grey,
+              isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: isCompleted ? Colors.blue : Colors.grey,
               size: 26,
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+// Helper function untuk mendapatkan icon berdasarkan judul task
+IconData _getIconForTask(String title) {
+  final lowerTitle = title.toLowerCase();
+  if (lowerTitle.contains('kalkulus') || lowerTitle.contains('math') || lowerTitle.contains('matematika')) {
+    return Icons.calculate;
+  } else if (lowerTitle.contains('programming') || lowerTitle.contains('code') || lowerTitle.contains('coding')) {
+    return Icons.code;
+  } else if (lowerTitle.contains('fisika') || lowerTitle.contains('physics')) {
+    return Icons.science;
+  } else if (lowerTitle.contains('bahasa') || lowerTitle.contains('language')) {
+    return Icons.book;
+  } else if (lowerTitle.contains('lab') || lowerTitle.contains('praktikum')) {
+    return Icons.biotech;
+  } else {
+    return Icons.assignment;
   }
 }

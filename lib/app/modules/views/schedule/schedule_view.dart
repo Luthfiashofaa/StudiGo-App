@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '../../controllers/schedule/schedule_controller.dart';
 
 class ScheduleView extends StatefulWidget {
   const ScheduleView({Key? key}) : super(key: key);
@@ -8,7 +11,65 @@ class ScheduleView extends StatefulWidget {
 }
 
 class _ScheduleViewState extends State<ScheduleView> {
+  late final ScheduleController _controller;
   DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = Get.put(ScheduleController());
+    _controller.fetchSchedules(date: _selectedDate);
+  }
+
+  Future<void> _refreshSchedules() async {
+    await _controller.fetchSchedules(date: _selectedDate);
+  }
+
+  String _formatRange(Map<String, dynamic> item) {
+    final start = DateTime.tryParse(item['start_time']?.toString() ?? '');
+    final end = DateTime.tryParse(item['end_time']?.toString() ?? '');
+    if (start == null || end == null) return '';
+    String fmt(DateTime dt) =>
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return '${fmt(start)} - ${fmt(end)}';
+  }
+
+  Color _priorityColor(String? p) {
+    switch (p) {
+      case 'Tinggi':
+        return Colors.redAccent;
+      case 'Sedang':
+        return Colors.amber;
+      case 'Rendah':
+        return Colors.green;
+      default:
+        return const Color(0xFF2B7FFF);
+    }
+  }
+
+  Future<void> _confirmDelete(String id) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus jadwal?'),
+        content: const Text('Tindakan ini tidak bisa dibatalkan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await _controller.deleteSchedule(id);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,42 +99,6 @@ class _ScheduleViewState extends State<ScheduleView> {
         'date': now,
       };
     });
-
-    final tasks = [
-      {
-        'time': '09:00 AM - 10:00 AM',
-        'title': 'Kalkulus',
-        'desc':
-            'Kerjakan latihan soal tentang turunan dan integral. Fokus pada penerapan rumus dan grafi...',
-        'priority': 'high',
-        'color': const Color.fromARGB(255, 255, 0, 0),
-      },
-      {
-        'time': '11:30 AM - 12:30 PM',
-        'title': 'Basic Programming',
-        'desc':
-            'Buat program sederhana menggunakan struktur perulangan dan kondisi (if-else). Simpan hasil da...',
-        'priority': 'high',
-        'color': const Color.fromARGB(255, 255, 0, 0),
-      },
-      {
-        'time': '11:30 AM - 12:30 PM',
-        'title': 'Database',
-        'desc':
-            'Rancang database mahasiswa dengan minimal 3 tabel (mahasiswa, mata kuliah, nilai). Buat query...',
-        'priority': 'medium',
-        'color': Color.fromARGB(255, 255, 238, 0),
-
-      },
-      {
-        'time': '11:30 AM - 12:30 PM',
-        'title': 'Mobile Programming',
-        'desc':
-            'Buat tampilan halaman login dan beranda sederhana menggunakan Flutter. Pastikan desain...',
-        'priority': 'low',
-        'color': const Color.fromARGB(255, 9, 255, 0),
-      },
-    ];
 
     final now = DateTime.now();
     const monthNames = [
@@ -136,7 +161,10 @@ class _ScheduleViewState extends State<ScheduleView> {
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: () async {
+                await Get.toNamed('/add-schedule');
+                await _refreshSchedules();
+              },
               icon: const Icon(Icons.add, size: 18, color: Colors.white),
               label: const Text(
                 'Add Task',
@@ -183,6 +211,7 @@ class _ScheduleViewState extends State<ScheduleView> {
                             setState(() {
                               _selectedDate = picked;
                             });
+                            await _refreshSchedules();
                           }
                         },
                         child: SizedBox(
@@ -239,10 +268,11 @@ class _ScheduleViewState extends State<ScheduleView> {
                     final monthLabel = monthShort[dateObj.month - 1];
 
                     return GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         setState(() {
                           _selectedDate = dateObj;
                         });
+                        await _refreshSchedules();
                       },
                       child: Column(
                         children: [
@@ -299,12 +329,22 @@ class _ScheduleViewState extends State<ScheduleView> {
                               SizedBox(width: 3),
                               CircleAvatar(
                                 radius: 3,
-                                backgroundColor: Color.fromARGB(255, 255, 238, 0),
+                                backgroundColor: Color.fromARGB(
+                                  255,
+                                  255,
+                                  238,
+                                  0,
+                                ),
                               ),
                               SizedBox(width: 3),
                               CircleAvatar(
                                 radius: 3,
-                                backgroundColor: Color.fromARGB(255, 0, 255, 13),
+                                backgroundColor: Color.fromARGB(
+                                  255,
+                                  0,
+                                  255,
+                                  13,
+                                ),
                               ),
                             ],
                           ),
@@ -316,164 +356,209 @@ class _ScheduleViewState extends State<ScheduleView> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: ListView.separated(
-                  itemCount: tasks.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 18),
-                  itemBuilder: (context, index) {
-                    final t = tasks[index];
-                    final Color border = t['color'] as Color;
-                    final String time = t['time'] as String;
-                    final String title = t['title'] as String;
-                    final String desc = t['desc'] as String;
-                    final String priority = t['priority'] as String;
-                    final Color priorityColor = priority == 'high'
-                        ? Colors.redAccent
-                        : (priority == 'medium' ? Colors.amber : Colors.green);
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: border.withOpacity(0.3),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // colored accent bar on the left (stretches full height)
-                            Container(
-                              width: 6,
-                              decoration: BoxDecoration(
-                                color: border.withOpacity(0.95),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(12),
-                                  bottomLeft: Radius.circular(12),
-                                ),
+                child: Obx(() {
+                  if (_controller.isLoading.value) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (_controller.schedules.isEmpty) {
+                    return const Center(
+                      child: Text('Belum ada jadwal untuk tanggal ini.'),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: _refreshSchedules,
+                    child: ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: _controller.schedules.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 18),
+                      itemBuilder: (context, index) {
+                        final t = _controller.schedules[index];
+                        final Color border = _priorityColor(
+                          t['priority']?.toString(),
+                        ).withOpacity(0.9);
+                        final String time = _formatRange(t);
+                        final String title = t['title']?.toString() ?? '';
+                        final String desc = t['description']?.toString() ?? '-';
+                        final String priority = t['priority']?.toString() ?? '';
+                        final String category =
+                            t['category']?.toString() ?? 'Kategori';
+
+                        return GestureDetector(
+                          onTap: () async {
+                            await Get.toNamed(
+                              '/add-schedule',
+                              arguments: {'schedule': t},
+                            );
+                            await _refreshSchedules();
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: border.withOpacity(0.3),
+                                width: 2,
                               ),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 6),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
+                              ],
+                            ),
+                            child: IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    decoration: BoxDecoration(
+                                      color: border.withOpacity(0.95),
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(12),
+                                        bottomLeft: Radius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 12,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Icon(
+                                                          Icons.view_in_ar,
+                                                          size: 16,
+                                                          color: border
+                                                              .withOpacity(
+                                                                0.95,
+                                                              ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Text(
+                                                          time,
+                                                          style:
+                                                              const TextStyle(
+                                                                color:
+                                                                    Colors.grey,
+                                                                fontSize: 13,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      title,
+                                                      style: const TextStyle(
+                                                        fontSize: 18,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
                                               Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.center,
+                                                mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Icon(
-                                                    Icons.view_in_ar,
-                                                    size: 16,
-                                                    color: border.withOpacity(
-                                                      0.95,
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.delete_outline,
+                                                      color: Colors.redAccent,
                                                     ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    time,
-                                                    style: const TextStyle(
-                                                      color: Colors.grey,
-                                                      fontSize: 13,
-                                                    ),
+                                                    onPressed: () =>
+                                                        _confirmDelete(
+                                                          t['id'].toString(),
+                                                        ),
                                                   ),
                                                 ],
                                               ),
-                                              const SizedBox(height: 6),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            desc,
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.import_contacts,
+                                                size: 16,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 6),
                                               Text(
-                                                title,
+                                                category,
                                                 style: const TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w800,
+                                                  color: Colors.grey,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              _PriorityBadge(
+                                                color: _priorityColor(priority),
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                priority.isEmpty
+                                                    ? 'Prioritas'
+                                                    : 'Prioritas $priority',
+                                                style: TextStyle(
+                                                  color: _priorityColor(
+                                                    priority,
+                                                  ),
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 13,
                                                 ),
                                               ),
                                             ],
                                           ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        const Icon(
-                                          Icons.more_vert,
-                                          color: Color(0xFF2B7FFF),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      desc,
-                                      maxLines: 3,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.black54,
-                                        fontSize: 14,
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.import_contacts,
-                                          size: 16,
-                                          color: Colors.grey,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        const Text(
-                                          'Belajar',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        _PriorityBadge(
-                                          color: priorityColor,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          priority == 'high'
-                                              ? 'Prioritas Tinggi'
-                                              : (priority == 'medium'
-                                                    ? 'Prioritas Sedang'
-                                                    : 'Prioritas Rendah'),
-                                          style: TextStyle(
-                                            color: priorityColor,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }),
               ),
             ],
           ),
