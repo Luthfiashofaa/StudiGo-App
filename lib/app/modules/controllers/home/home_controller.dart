@@ -1,8 +1,10 @@
 import 'package:get/get.dart';
 import '../../../data/services/supabase_service.dart';
+import '../schedule/schedule_controller.dart';
 
 class HomeController extends GetxController {
   final _supabaseService = Get.find<SupabaseService>();
+  late final ScheduleController _scheduleController;
   
   // Observable untuk menyimpan nama user
   final userName = 'User'.obs;
@@ -26,8 +28,36 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _initScheduleListener();
     _loadUserData();
     _loadTodayTasks();
+  }
+
+  void _initScheduleListener() {
+    if (Get.isRegistered<ScheduleController>()) {
+      _scheduleController = Get.find<ScheduleController>();
+    } else {
+      _scheduleController = Get.put(ScheduleController());
+    }
+    ever(_scheduleController.schedules, (_) {
+      _updateTodayTasksFromSchedule();
+    });
+  }
+
+  void _updateTodayTasksFromSchedule() {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final todaySchedules = _scheduleController.schedules.where((item) {
+      final raw = item['start_time']?.toString();
+      final dt = raw != null ? DateTime.tryParse(raw) : null;
+      if (dt == null) return false;
+      return dt.isAfter(startOfDay.subtract(const Duration(milliseconds: 1))) &&
+          dt.isBefore(endOfDay);
+    }).toList();
+
+    todayTasks.assignAll(todaySchedules);
   }
 
   @override
@@ -84,33 +114,13 @@ class HomeController extends GetxController {
         return;
       }
       
-      // Dapatkan tanggal hari ini (tanpa waktu)
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
-      
-      print('Loading tasks for today: ${startOfDay.toString()} to ${endOfDay.toString()}');
-      
-      // Query schedules untuk hari ini
-      final data = await _supabaseService.client
-          .from('schedules')
-          .select('id, title, start_time, end_time, description, category')
-          .eq('user_id', user.id)
-          .gte('start_time', startOfDay.toIso8601String())
-          .lt('start_time', endOfDay.toIso8601String())
-          .order('start_time', ascending: true);
-      
-      print('Received ${(data as List).length} schedules from database');
-      
-      final list = List<Map<String, dynamic>>.from(data);
-      
-      // Tambahkan properti isCompleted untuk setiap task (hanya di memori, tidak persist)
-      for (var task in list) {
-        task['isCompleted'] = false; // Default semua belum selesai
-        task['title'] = task['title'] ?? 'Tugas'; // Fallback jika title null
+      // Load schedules dari ScheduleController jika belum loaded
+      if (_scheduleController.schedules.isEmpty) {
+        await _scheduleController.fetchSchedules();
       }
       
-      todayTasks.assignAll(list);
+      // Update today tasks dari schedule controller
+      _updateTodayTasksFromSchedule();
       
       // Reset hitungan tugas yang sudah selesai
       completedTasksCount.value = 0;

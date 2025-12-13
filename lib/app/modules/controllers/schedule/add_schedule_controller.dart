@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/supabase_service.dart';
+import '../home/home_controller.dart';
 
 class AddScheduleController extends GetxController {
   AddScheduleController({SupabaseService? supabase})
@@ -61,6 +62,15 @@ class AddScheduleController extends GetxController {
     isSaving.value = true;
     try {
       await _supabase.from('schedules').insert(payload);
+      
+      // Refresh HomeController data setelah berhasil menambah schedule
+      try {
+        if (Get.isRegistered<HomeController>()) {
+          Get.find<HomeController>().refreshData();
+        }
+      } catch (e) {
+        print('Warning: Could not refresh home controller: $e');
+      }
     } on PostgrestException catch (e) {
       throw Exception(e.message);
     } catch (_) {
@@ -122,6 +132,15 @@ class AddScheduleController extends GetxController {
           .update(payload)
           .eq('id', id)
           .eq('user_id', user.id);
+      
+      // Refresh HomeController data setelah berhasil update schedule
+      try {
+        if (Get.isRegistered<HomeController>()) {
+          Get.find<HomeController>().refreshData();
+        }
+      } catch (e) {
+        print('Warning: Could not refresh home controller: $e');
+      }
     } on PostgrestException catch (e) {
       throw Exception(e.message);
     } finally {
