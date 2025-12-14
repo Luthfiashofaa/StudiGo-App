@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../controllers/schedule/schedule_controller.dart';
+import '../../controllers/schedule/add_schedule_controller.dart';
+import 'add_schedule_view.dart';
+import '../../views/shell/app_shell.dart';
 
 class ScheduleView extends StatefulWidget {
   const ScheduleView({Key? key}) : super(key: key);
@@ -162,8 +165,20 @@ class _ScheduleViewState extends State<ScheduleView> {
             padding: const EdgeInsets.only(right: 12.0),
             child: ElevatedButton.icon(
               onPressed: () async {
-                await Get.toNamed('/add-schedule');
-                await _refreshSchedules();
+                // Register controller before opening view
+                Get.put(AddScheduleController());
+                final result = await Get.to<int>(const AddScheduleView());
+                // If user navigated away via navbar in AddScheduleView,
+                // avoid popping the root to prevent a black screen.
+                if (result != null) {
+                  // Tab change will be handled by ShellController inside AddScheduleView.
+                  // Nothing to do here.
+                } else {
+                  // User just saved/closed normally, refresh schedules
+                  await _refreshSchedules();
+                }
+                // Clean up controller after closing view
+                Get.delete<AddScheduleController>();
               },
               icon: const Icon(Icons.add, size: 18, color: Colors.white),
               label: const Text(
@@ -387,11 +402,21 @@ class _ScheduleViewState extends State<ScheduleView> {
 
                         return GestureDetector(
                           onTap: () async {
-                            await Get.toNamed(
-                              '/add-schedule',
-                              arguments: {'schedule': t},
+                            // Register controller before opening view
+                            Get.put(AddScheduleController());
+                            final result = await Get.to<int>(
+                              AddScheduleView(scheduleData: t),
                             );
-                            await _refreshSchedules();
+                            // If user navigated away via navbar in AddScheduleView,
+                            // avoid popping the root to prevent a black screen.
+                            if (result != null) {
+                              // Tab change handled by ShellController inside AddScheduleView.
+                            } else {
+                              // User just saved/closed normally, refresh schedules
+                              await _refreshSchedules();
+                            }
+                            // Clean up controller after closing view
+                            Get.delete<AddScheduleController>();
                           },
                           child: Container(
                             decoration: BoxDecoration(
@@ -612,5 +637,21 @@ class _PriorityBadge extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// Lightweight entry to rebuild AppShell with a specific tab index passed via RouteSettings.arguments.
+class _AppShellEntry extends StatelessWidget {
+  const _AppShellEntry({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    int initialIndex = 0;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['tabIndex'] is int) {
+      initialIndex = args['tabIndex'] as int;
+    }
+    // Import deferred to avoid circular import at top; use runtime import via builder in route.
+    return AppShell(initialIndex: initialIndex);
   }
 }

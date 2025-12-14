@@ -42,7 +42,7 @@ dependencies:
   flutter_dotenv: ^6.0.0
   http: ^0.13.6
   app_links: ^6.4.1
-  url_launcher: ^6.1.7
+  url_launcher: ^6.2.2
   shared_preferences: ^2.2.0
 
 dev_dependencies:
