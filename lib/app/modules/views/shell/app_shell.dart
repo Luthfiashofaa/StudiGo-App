@@ -19,11 +19,11 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   late final ShellController _shellController;
 
-  final List<Widget> _pages = const [
+  final List<Widget> _pages = [
     HomeView(),
-    ScheduleView(),
-    StreakView(),
-    ProfileView(),
+    const ScheduleView(),
+    const StreakView(),
+    const ProfileView(),
   ];
 
   void _onTap(int idx) => _shellController.setIndex(idx);
