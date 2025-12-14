@@ -6,16 +6,84 @@ import 'daily_mission_view.dart';
 
 import '../../controllers/streak/streak_controller.dart';
 
-class StreakView extends GetView<StreakController> {
+class StreakView extends StatefulWidget {
   const StreakView({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  State<StreakView> createState() => _StreakViewState();
+}
+
+class _StreakViewState extends State<StreakView> {
+  late StreakController controller;
+  bool showScrollToTop = false;
+
+  @override
+  void initState() {
+    super.initState();
     // ensure controller available (AppShell may not have bound it)
     if (!Get.isRegistered<StreakController>()) {
       Get.lazyPut<StreakController>(() => StreakController());
     }
+    controller = Get.find<StreakController>();
 
+    // Setup scroll listener in initState, not in build
+    controller.scrollController.addListener(_onScrollChanged);
+
+    // Setup initial scroll position after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoScrollToCurrentDay();
+    });
+  }
+
+  void _autoScrollToCurrentDay() {
+    if (!controller.hasAutoScrolled && controller.scrollController.hasClients) {
+      const segmentHeight = 320.0;
+      const int baseFutureDays = 100;
+      final totalDays = baseFutureDays + controller.streakCount.value;
+
+      final viewport = MediaQuery.of(context).size.height;
+      final currentIndex = (controller.streakCount.value - 1).clamp(
+        0,
+        totalDays - 1,
+      );
+      final contentHeight = (totalDays * segmentHeight).clamp(
+        segmentHeight * 1.5,
+        200000.0,
+      );
+      // compute the cy in bottom-origin coordinate
+      final cy = contentHeight - (currentIndex * segmentHeight + 150.0);
+      final target = (cy - viewport / 2).clamp(
+        0.0,
+        controller.scrollController.position.maxScrollExtent,
+      );
+      controller.scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeInOut,
+      );
+      controller.hasAutoScrolled = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.scrollController.removeListener(_onScrollChanged);
+    super.dispose();
+  }
+
+  void _onScrollChanged() {
+    final offset = controller.scrollController.offset;
+    final newValue = offset > 200;
+    // Only call setState if value actually changed to avoid unnecessary rebuilds
+    if (showScrollToTop != newValue) {
+      setState(() {
+        showScrollToTop = newValue;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final ctrl = controller;
 
     return Scaffold(
@@ -27,44 +95,11 @@ class StreakView extends GetView<StreakController> {
           const int baseFutureDays = 100;
           // compute total days as base + current streak day
           final totalDays = baseFutureDays + ctrl.streakCount.value;
-          // ensure controller.days reflects this total so painter and loadMore agree
-          if (ctrl.days.value != totalDays) {
-            ctrl.days.value = totalDays;
-          }
+
           final contentHeight = (totalDays * segmentHeight).clamp(
             segmentHeight * 1.5,
             200000.0,
           );
-
-          // Listen to scroll position
-          final showScrollToTop = false.obs;
-          ctrl.scrollController.addListener(() {
-            final offset = ctrl.scrollController.offset;
-            showScrollToTop.value = offset > 200;
-          });
-
-          // Auto-scroll once to center the current day node
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!ctrl.hasAutoScrolled && ctrl.scrollController.hasClients) {
-              final viewport = MediaQuery.of(context).size.height;
-              final currentIndex = (ctrl.streakCount.value - 1).clamp(
-                0,
-                totalDays - 1,
-              );
-              // compute the cy in bottom-origin coordinate (contentHeight == size.height in painter)
-              final cy = contentHeight - (currentIndex * segmentHeight + 150.0);
-              final target = (cy - viewport / 2).clamp(
-                0.0,
-                ctrl.scrollController.position.maxScrollExtent,
-              );
-              ctrl.scrollController.animateTo(
-                target,
-                duration: const Duration(milliseconds: 700),
-                curve: Curves.easeInOut,
-              );
-              ctrl.hasAutoScrolled = true;
-            }
-          });
 
           return Stack(
             children: [
@@ -165,63 +200,61 @@ class StreakView extends GetView<StreakController> {
                 ),
               ),
 
-              Obx(
-                () => showScrollToTop.value
-                    ? Positioned(
-                        top: 16,
-                        right: 24,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              ctrl.scrollController.animateTo(
-                                ctrl.scrollController.position.maxScrollExtent,
-                                duration: const Duration(milliseconds: 800),
-                                curve: Curves.easeInOut,
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(30),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.15),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(
-                                    Icons.arrow_downward,
-                                    color: Color(0xFF47CF5B),
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Day 1',
-                                    style: TextStyle(
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
+              // Show/hide scroll-to-top button based on scroll position
+              if (showScrollToTop)
+                Positioned(
+                  top: 16,
+                  right: 24,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        ctrl.scrollController.animateTo(
+                          ctrl.scrollController.position.maxScrollExtent,
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(30),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.arrow_downward,
+                              color: Color(0xFF47CF5B),
+                              size: 20,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Day 1',
+                              style: TextStyle(
+                                color: Colors.black87,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
+                      ),
+                    ),
+                  ),
+                ),
 
               Positioned(
                 right: 24,

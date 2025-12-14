@@ -4,10 +4,12 @@ import 'package:studigo/app/modules/views/auth/login_view.dart';
 import 'package:studigo/app/modules/views/home/home_view.dart';
 import 'package:studigo/app/modules/views/auth/auth_callback_view.dart';
 import 'package:studigo/app/modules/views/schedule/add_schedule_view.dart';
+import 'package:studigo/app/modules/views/profile/profile_view.dart';
 
 import 'package:studigo/app/modules/bindings/auth/login_binding.dart';
 import 'package:studigo/app/modules/bindings/home/home_binding.dart';
 import 'package:studigo/app/modules/bindings/schedule/add_schedule_binding.dart';
+import 'package:studigo/app/modules/bindings/profile/profile_binding.dart';
 
 part 'app_routes.dart';
 
@@ -32,6 +34,11 @@ class AppPages {
       name: _Paths.addschedule,
       page: () => const AddScheduleView(),
       binding: AddScheduleBinding(),
+    ),
+    GetPage(
+      name: _Paths.profile,
+      page: () => const ProfileView(),
+      binding: ProfileBinding(),
     ),
 
     GetPage(name: '/auth-callback', page: () => const AuthCallbackView()),
