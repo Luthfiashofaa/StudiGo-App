@@ -19,13 +19,21 @@ class VerifyCodeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    final args = Get.arguments;
-    if (args is Map && args['email'] != null) {
-      email.value = args['email'] as String;
-    }
-    // Start a 15-minute countdown when arriving at this screen. This is UI-only
-    // and will be restarted when the user requests a resend.
-    startTimer(15 * 60);
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    // Delay reactive updates to next frame to avoid "setState during build" error
+    Future.delayed(Duration.zero, () {
+      final args = Get.arguments;
+      if (args is Map && args['email'] != null) {
+        email.value = args['email'] as String;
+      }
+      // Start a 15-minute countdown when arriving at this screen. This is UI-only
+      // and will be restarted when the user requests a resend.
+      startTimer(15 * 60);
+    });
   }
 
   @override

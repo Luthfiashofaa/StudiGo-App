@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../controllers/shell/shell_controller.dart';
+import '../../controllers/home/home_controller.dart';
 import '../../views/home/home_view.dart';
 import '../../views/schedule/schedule_view.dart';
+import '../../views/schedule/add_schedule_view.dart';
 import '../../views/streak/streak_view.dart';
 import '../../views/profile/profile_view.dart';
 
@@ -13,7 +17,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int _currentIndex = 0;
+  late final ShellController _shellController;
 
   final List<Widget> _pages = const [
     HomeView(),
@@ -22,7 +26,19 @@ class _AppShellState extends State<AppShell> {
     ProfileView(),
   ];
 
-  void _onTap(int idx) => setState(() => _currentIndex = idx);
+  void _onTap(int idx) => _shellController.setIndex(idx);
+
+  Future<void> _navigateToAddSchedule() async {
+    // Navigate to add schedule and wait for return value (tab index)
+    final result = await Navigator.of(context).push<int>(
+      MaterialPageRoute(builder: (context) => const AddScheduleView()),
+    );
+
+    // If user selected a different tab from navbar in add schedule, switch to it
+    if (result != null) {
+      _shellController.setIndex(result);
+    }
+  }
 
   Widget _buildNavIcon({
     required IconData icon,
@@ -56,7 +72,12 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+    _shellController = Get.put(ShellController());
+    _shellController.setIndex(widget.initialIndex);
+    // Ensure HomeController is available for HomeView
+    if (!Get.isRegistered<HomeController>()) {
+      Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
+    }
   }
 
   @override
@@ -64,7 +85,9 @@ class _AppShellState extends State<AppShell> {
     const primaryBlue = Color(0xFF1557D4);
 
     return Scaffold(
-      body: SafeArea(child: _pages[_currentIndex]),
+      body: SafeArea(
+        child: Obx(() => _pages[_shellController.currentIndex.value]),
+      ),
       bottomNavigationBar: Container(
         height: 86,
         decoration: const BoxDecoration(
@@ -80,25 +103,33 @@ class _AppShellState extends State<AppShell> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavIcon(
-                  icon: Icons.home,
-                  isActive: _currentIndex == 0,
-                  onTap: () => _onTap(0),
+                Obx(
+                  () => _buildNavIcon(
+                    icon: Icons.home,
+                    isActive: _shellController.currentIndex.value == 0,
+                    onTap: () => _onTap(0),
+                  ),
                 ),
-                _buildNavIcon(
-                  icon: Icons.event,
-                  isActive: _currentIndex == 1,
-                  onTap: () => _onTap(1),
+                Obx(
+                  () => _buildNavIcon(
+                    icon: Icons.event,
+                    isActive: _shellController.currentIndex.value == 1,
+                    onTap: () => _onTap(1),
+                  ),
                 ),
-                _buildNavIcon(
-                  icon: Icons.track_changes,
-                  isActive: _currentIndex == 2,
-                  onTap: () => _onTap(2),
+                Obx(
+                  () => _buildNavIcon(
+                    icon: Icons.track_changes,
+                    isActive: _shellController.currentIndex.value == 2,
+                    onTap: () => _onTap(2),
+                  ),
                 ),
-                _buildNavIcon(
-                  icon: Icons.person,
-                  isActive: _currentIndex == 3,
-                  onTap: () => _onTap(3),
+                Obx(
+                  () => _buildNavIcon(
+                    icon: Icons.person,
+                    isActive: _shellController.currentIndex.value == 3,
+                    onTap: () => _onTap(3),
+                  ),
                 ),
               ],
             ),

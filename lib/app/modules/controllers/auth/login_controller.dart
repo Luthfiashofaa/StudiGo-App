@@ -4,6 +4,7 @@ import '../../views/shell/app_shell.dart';
 import '../../bindings/shell/app_shell_binding.dart';
 import '../../../data/providers/auth_provider.dart';
 import '../../../data/services/auth_persistence_service.dart';
+import '../../../data/services/supabase_service.dart';
 // AppShell is used as the shared UI shell with bottom navigation.
 
 class LoginController extends GetxController {
@@ -30,9 +31,28 @@ class LoginController extends GetxController {
 
       final user = res.user;
       if (user != null) {
-        // Save login state to SharedPreferences
+        // Fetch user role from database
+        String userRole = 'user'; // default role
+        try {
+          final supabaseService = Get.find<SupabaseService>();
+          final userData = await supabaseService
+              .from('users')
+              .select('role')
+              .eq('id', user.id)
+              .single();
+          userRole = userData['role'] ?? 'user';
+        } catch (e) {
+          debugPrint('Error fetching user role: $e');
+          // Fallback to default 'user' role
+        }
+
+        // Save login state to SharedPreferences (with role)
         final authPersistence = Get.find<AuthPersistenceService>();
-        await authPersistence.saveLoginState(user.id, user.email ?? e);
+        await authPersistence.saveLoginState(
+          user.id,
+          user.email ?? e,
+          role: userRole,
+        );
 
         // Successful login. Navigate to the main shell.
         Get.off(() => const AppShell(), binding: AppShellBinding());
