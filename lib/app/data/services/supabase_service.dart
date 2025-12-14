@@ -71,14 +71,14 @@ class SupabaseService extends GetxService {
 
       // Debug: print masked values so we can confirm keys were loaded without
       // leaking secrets to logs. Useful to diagnose NotInitializedError.
-      String _mask(String s) {
+      String mask(String s) {
         if (s.length <= 12) return '************';
         return '${s.substring(0, 6)}...${s.substring(s.length - 6)}';
       }
 
       if (kDebugMode) {
-        debugPrint('Supabase URL: ${_mask(supabaseUrl)}');
-        debugPrint('Supabase ANON key: ${_mask(supabaseAnonKey)}');
+        debugPrint('Supabase URL: ${mask(supabaseUrl)}');
+        debugPrint('Supabase ANON key: ${mask(supabaseAnonKey)}');
       }
 
       await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);

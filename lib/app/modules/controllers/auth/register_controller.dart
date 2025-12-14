@@ -8,11 +8,6 @@ import 'package:studigo/app/routes/app_pages.dart';
 class RegisterController extends GetxController {
   final RxBool isLoading = false.obs;
 
-  @override
-  void onClose() {
-    super.onClose();
-  }
-
   /// Register using primitive values supplied by the View. The TextEditing
   /// controllers are owned by the StatefulWidget to avoid dispose/lifecycle
   /// races when GetX removes controllers during navigation.
