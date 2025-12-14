@@ -17,11 +17,6 @@ class VerifyCodeController extends GetxController {
   final RxBool isSending = false.obs;
 
   @override
-  void onInit() {
-    super.onInit();
-  }
-
-  @override
   void onReady() {
     super.onReady();
     // Delay reactive updates to next frame to avoid "setState during build" error

@@ -50,7 +50,7 @@ class NewPasswordController extends GetxController {
 
     // Helper: try to update password using recovery access token via
     // Supabase REST endpoint: PATCH {SUPABASE_URL}/auth/v1/user
-    Future<bool> _tryUpdateWithToken(String token) async {
+    Future<bool> tryUpdateWithToken(String token) async {
       final supabaseUrl =
           dotenv.env['SUPABASE_URL'] ??
           const String.fromEnvironment('SUPABASE_URL', defaultValue: '');
@@ -72,11 +72,14 @@ class NewPasswordController extends GetxController {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           return true;
         }
-        if (kDebugMode)
+        if (kDebugMode) {
           debugPrint('Password update failed: ${res.statusCode} ${res.body}');
+        }
         return false;
       } catch (e, st) {
-        if (kDebugMode) debugPrint('Password update exception: $e\n$st');
+        if (kDebugMode) {
+          debugPrint('Password update exception: $e\n$st');
+        }
         return false;
       }
     }
@@ -87,7 +90,7 @@ class NewPasswordController extends GetxController {
     final token = authParams?['access_token'];
     var updated = false;
     if (token != null) {
-      updated = await _tryUpdateWithToken(token);
+      updated = await tryUpdateWithToken(token);
       if (!updated) {
         Get.snackbar(
           'Error',
