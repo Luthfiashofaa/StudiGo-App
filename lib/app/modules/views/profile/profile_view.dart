@@ -27,9 +27,24 @@ class ProfileView extends GetView<ProfileController> {
       ),
     );
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      child: GetBuilder<ProfileController>(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isTablet = constraints.maxWidth >= 600;
+        final double horizontalPadding = isTablet ? 32.0 : 20.0;
+        final double verticalPadding = isTablet ? 24.0 : 18.0;
+        final double avatarSize = isTablet ? 140.0 : 120.0;
+        final double maxContentWidth = isTablet ? 900.0 : double.infinity;
+
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              child: GetBuilder<ProfileController>(
         init: ProfileController(),
         builder: (ctrl) {
           final c = ctrl;
@@ -54,8 +69,8 @@ class ProfileView extends GetView<ProfileController> {
                   child: Stack(
                     children: [
                       Container(
-                        width: 120,
-                        height: 120,
+                        width: avatarSize,
+                        height: avatarSize,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -125,8 +140,8 @@ class ProfileView extends GetView<ProfileController> {
                             );
                           },
                           child: Container(
-                            width: 40,
-                            height: 40,
+                            width: isTablet ? 44 : 40,
+                            height: isTablet ? 44 : 40,
                             decoration: BoxDecoration(
                               color: primaryBlue,
                               shape: BoxShape.circle,
@@ -144,13 +159,13 @@ class ProfileView extends GetView<ProfileController> {
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                SizedBox(height: isTablet ? 22 : 18),
 
                 const Text(
                   'Email',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: isTablet ? 10 : 8),
                 TextField(
                   controller: c.emailController,
                   readOnly: true,
@@ -160,86 +175,199 @@ class ProfileView extends GetView<ProfileController> {
                   ).copyWith(filled: true, fillColor: Colors.grey.shade100),
                 ),
 
-                const SizedBox(height: 12),
-                const Text(
-                  'First Name',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: c.firstNameController,
-                  decoration: fieldDecoration('First Name'),
-                ),
-
-                const SizedBox(height: 12),
-                const Text(
-                  'Last Name',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: c.lastNameController,
-                  decoration: fieldDecoration('Last Name'),
-                ),
-
-                const SizedBox(height: 12),
-                const Text(
-                  'Date of Birth',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () => c.pickDate(context),
-                  child: AbsorbPointer(
-                    child: TextField(
-                      controller: c.dobController,
-                      decoration: fieldDecoration('Date of Birth'),
-                    ),
+                SizedBox(height: isTablet ? 16 : 12),
+                // First & Last Name (two-column on tablet)
+                if (!isTablet) ...[
+                  Text(
+                    'First Name',
+                    style: TextStyle(fontSize: isTablet ? 16 : 14, fontWeight: FontWeight.w700),
                   ),
-                ),
-
-                const SizedBox(height: 12),
-                const Text(
-                  'Phone Number',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      height: 52,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: CountryCodePicker(
-                          onChanged: (country) => c.setCountry(
-                            // Country selection updates controller state for dial code + display
-                            country.code ?? 'ID',
-                            country.dialCode ?? '+62',
-                          ),
-                          initialSelection: c.countryCode,
-                          favorite: const ['+62', 'US'],
-                          showOnlyCountryWhenClosed: false,
-                          alignLeft: false,
+                  SizedBox(height: isTablet ? 10 : 8),
+                  TextField(
+                    controller: c.firstNameController,
+                    decoration: fieldDecoration('First Name'),
+                  ),
+                  SizedBox(height: isTablet ? 16 : 12),
+                  Text(
+                    'Last Name',
+                    style: TextStyle(fontSize: isTablet ? 16 : 14, fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(height: isTablet ? 10 : 8),
+                  TextField(
+                    controller: c.lastNameController,
+                    decoration: fieldDecoration('Last Name'),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'First Name',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: c.firstNameController,
+                              decoration: fieldDecoration('First Name'),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Last Name',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: c.lastNameController,
+                              decoration: fieldDecoration('Last Name'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                SizedBox(height: isTablet ? 16 : 12),
+                // Date of Birth & Phone Number (two-column on tablet)
+                if (!isTablet) ...[
+                  Text(
+                    'Date of Birth',
+                    style: TextStyle(fontSize: isTablet ? 16 : 14, fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(height: isTablet ? 10 : 8),
+                  GestureDetector(
+                    onTap: () => c.pickDate(context),
+                    child: AbsorbPointer(
                       child: TextField(
-                        controller: c.phoneController,
-                        keyboardType: TextInputType.phone,
-                        decoration: fieldDecoration('Phone Number'),
+                        controller: c.dobController,
+                        decoration: fieldDecoration('Date of Birth'),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  SizedBox(height: isTablet ? 16 : 12),
+                  Text(
+                    'Phone Number',
+                    style: TextStyle(fontSize: isTablet ? 16 : 14, fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(height: isTablet ? 10 : 8),
+                  Row(
+                    children: [
+                      Container(
+                        height: isTablet ? 56 : 52,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: CountryCodePicker(
+                            onChanged: (country) => c.setCountry(
+                              country.code ?? 'ID',
+                              country.dialCode ?? '+62',
+                            ),
+                            initialSelection: c.countryCode,
+                            favorite: const ['+62', 'US'],
+                            showOnlyCountryWhenClosed: false,
+                            alignLeft: false,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: c.phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: fieldDecoration('Phone Number'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Date of Birth',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 10),
+                            GestureDetector(
+                              onTap: () => c.pickDate(context),
+                              child: AbsorbPointer(
+                                child: TextField(
+                                  controller: c.dobController,
+                                  decoration: fieldDecoration('Date of Birth'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Phone Number',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Container(
+                                  height: 56,
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: CountryCodePicker(
+                                      onChanged: (country) => c.setCountry(
+                                        country.code ?? 'ID',
+                                        country.dialCode ?? '+62',
+                                      ),
+                                      initialSelection: c.countryCode,
+                                      favorite: const ['+62', 'US'],
+                                      showOnlyCountryWhenClosed: false,
+                                      alignLeft: false,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: TextField(
+                                    controller: c.phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    decoration: fieldDecoration('Phone Number'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
 
-                const SizedBox(height: 20),
+                SizedBox(height: isTablet ? 24 : 20),
                 Obx(
                   () => ElevatedButton(
                     onPressed: (c.isSaving.value || !c.hasChanges.value)
@@ -248,7 +376,7 @@ class ProfileView extends GetView<ProfileController> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryBlue,
                       foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(52),
+                      minimumSize: Size.fromHeight(isTablet ? 56 : 52),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -272,7 +400,7 @@ class ProfileView extends GetView<ProfileController> {
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                SizedBox(height: isTablet ? 14 : 12),
                 OutlinedButton(
                   onPressed: c.logout,
                   style: OutlinedButton.styleFrom(
@@ -281,7 +409,7 @@ class ProfileView extends GetView<ProfileController> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     side: BorderSide(color: primaryBlue),
-                    minimumSize: const Size.fromHeight(48),
+                    minimumSize: Size.fromHeight(isTablet ? 52 : 48),
                   ),
                   child: const Text(
                     'Logout',
@@ -292,12 +420,16 @@ class ProfileView extends GetView<ProfileController> {
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                SizedBox(height: isTablet ? 46 : 40),
               ],
             );
           });
         },
       ),
+    ),
+    ),
+  );
+      },
     );
   }
 }
