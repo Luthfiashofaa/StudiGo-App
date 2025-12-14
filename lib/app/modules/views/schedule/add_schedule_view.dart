@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../controllers/schedule/add_schedule_controller.dart';
+import '../../controllers/shell/shell_controller.dart';
 
 class AddScheduleView extends StatefulWidget {
-  const AddScheduleView({Key? key}) : super(key: key);
+  final Map<String, dynamic>? scheduleData;
+  const AddScheduleView({Key? key, this.scheduleData}) : super(key: key);
 
   @override
   State<AddScheduleView> createState() => _AddScheduleViewState();
@@ -21,6 +23,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
   String? _selectedCategory;
   String _priority = 'Tinggi';
   String? _editingId;
+  bool _isSaving = false;
 
   List<String> categories = ['Belajar', 'Istirahat', 'Hiburan', 'Tugas'];
 
@@ -28,9 +31,13 @@ class _AddScheduleViewState extends State<AddScheduleView> {
   void initState() {
     super.initState();
     _controller = Get.find<AddScheduleController>();
-    final args = Get.arguments;
-    if (args is Map && args['schedule'] != null) {
-      final sched = args['schedule'] as Map;
+
+    // Try to get schedule data from widget parameter first, then from Get.arguments
+    final sched =
+        widget.scheduleData ??
+        (Get.arguments is Map ? Get.arguments['schedule'] : null);
+
+    if (sched is Map && sched.isNotEmpty) {
       _editingId = sched['id']?.toString();
       _nameCtrl.text = sched['title']?.toString() ?? '';
       _descCtrl.text = sched['description']?.toString() ?? '';
@@ -124,6 +131,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       return;
     }
 
+    setState(() => _isSaving = true);
     try {
       if (_editingId != null) {
         await _controller.updateSchedule(
@@ -160,6 +168,8 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       Navigator.of(context).maybePop();
     } catch (e) {
       Get.snackbar('Gagal', e.toString());
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -486,39 +496,35 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                 child: SizedBox(
                   width: 250,
                   height: 54,
-                  child: Obx(
-                    () => ElevatedButton(
-                      onPressed: _controller.isSaving.value
-                          ? null
-                          : _saveSchedule,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2D7DF6),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _saveSchedule,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D7DF6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: _controller.isSaving.value
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : Text(
-                              _editingId != null
-                                  ? 'Perbarui Target'
-                                  : 'Simpan Target',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
                               ),
                             ),
-                    ),
+                          )
+                        : Text(
+                            _editingId != null
+                                ? 'Perbarui Target'
+                                : 'Simpan Target',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -526,8 +532,105 @@ class _AddScheduleViewState extends State<AddScheduleView> {
           ),
         ),
       ),
-      bottomNavigationBar: _bottomNavBar(),
+      bottomNavigationBar: _buildBottomNavBar(),
     );
+  }
+
+  Widget _buildBottomNavBar() {
+    const primaryBlue = Color(0xFF1557D4);
+    const activeBoxColor = Color(0xFF6097FF);
+
+    return Container(
+      height: 86,
+      decoration: const BoxDecoration(
+        color: primaryBlue,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(18),
+          topRight: Radius.circular(18),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavIcon(
+                icon: Icons.home,
+                isActive: false,
+                onTap: () => _handleNavTap(0),
+              ),
+              _buildNavIcon(
+                icon: Icons.event,
+                isActive: true,
+                onTap: () => _handleNavTap(1),
+              ),
+              _buildNavIcon(
+                icon: Icons.track_changes,
+                isActive: false,
+                onTap: () => _handleNavTap(2),
+              ),
+              _buildNavIcon(
+                icon: Icons.person,
+                isActive: false,
+                onTap: () => _handleNavTap(3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: 120,
+            height: 6,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavIcon({
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    const activeBoxColor = Color(0xFF6097FF);
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: isActive
+          ? BoxDecoration(
+              color: activeBoxColor,
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
+      alignment: Alignment.center,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 56, height: 56),
+        onPressed: onTap,
+        icon: Icon(
+          icon,
+          color: isActive ? Colors.white : Colors.white70,
+          size: 32,
+        ),
+      ),
+    );
+  }
+
+  void _handleNavTap(int index) {
+    // Jika klik icon calendar (schedule), tetap di halaman ini (jangan pop)
+    if (index == 1) {
+      return;
+    }
+    // Update shell tab index centrally for smooth tab switch, then close this view.
+    final shell = Get.isRegistered<ShellController>()
+        ? Get.find<ShellController>()
+        : Get.put(ShellController());
+    shell.setIndex(index);
+    Get.back();
   }
 
   Widget _priorityChip(String label) {
@@ -579,46 +682,6 @@ class _AddScheduleViewState extends State<AddScheduleView> {
             fontWeight: FontWeight.w700,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _bottomNavBar() {
-    return Container(
-      height: 72,
-      decoration: const BoxDecoration(
-        color: Color(0xFF2D7DF6),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(18),
-          topRight: Radius.circular(18),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.home, color: Colors.white),
-          ),
-          // calendar icon highlighted
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.calendar_today, color: Color(0xFF2D7DF6)),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.track_changes, color: Colors.white),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.person, color: Colors.white),
-          ),
-        ],
       ),
     );
   }

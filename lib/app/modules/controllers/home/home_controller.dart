@@ -7,7 +7,7 @@ class HomeController extends GetxController {
 
   // Observable untuk menyimpan nama user
   final userName = 'User'.obs;
-  final isLoadingUser = true.obs;
+  final isLoadingUser = false.obs;
 
   // Observable untuk tracking tugas hari ini
   final RxList<Map<String, dynamic>> todayTasks = <Map<String, dynamic>>[].obs;
@@ -27,13 +27,16 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadUserData();
-    _loadTodayTasks();
   }
 
   @override
   void onReady() {
     super.onReady();
+    // Delay reactive updates to next frame to avoid "setState during build" error
+    Future.delayed(Duration.zero, () {
+      _loadUserData();
+      _loadTodayTasks();
+    });
   }
 
   @override

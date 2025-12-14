@@ -29,8 +29,7 @@ class AddScheduleController extends GetxController {
       throw Exception('User belum login.');
     }
 
-    // Combine the selected date with start/end time so we can store them as
-    // timestamptz in Supabase. This makes filtering and ordering easier.
+    // Combine the selected date with start/end time. Use local DateTime to avoid UTC shift.
     final startDateTime = DateTime(
       date.year,
       date.month,
@@ -46,13 +45,19 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
+    // Format as local time string (YYYY-MM-DD HH:MM:SS) to preserve date
+    String formatLocal(DateTime dt) {
+      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:00';
+    }
+
     final payload = {
       'user_id': user.id,
       'title': title,
       'description': description,
-      'date': DateTime(date.year, date.month, date.day).toIso8601String(),
-      'start_time': startDateTime.toIso8601String(),
-      'end_time': endDateTime.toIso8601String(),
+      'date': formatLocal(DateTime(date.year, date.month, date.day)),
+      'start_time': formatLocal(startDateTime),
+      'end_time': formatLocal(endDateTime),
       'repeat_daily': repeatDaily,
       'priority': priority,
       'category': category,
@@ -103,16 +108,22 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
+    // Format as local time string (YYYY-MM-DD HH:MM:SS) to preserve date
+    String formatLocal(DateTime dt) {
+      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:00';
+    }
+
     final payload = {
       'title': title,
       'description': description,
-      'date': DateTime(date.year, date.month, date.day).toIso8601String(),
-      'start_time': startDateTime.toIso8601String(),
-      'end_time': endDateTime.toIso8601String(),
+      'date': formatLocal(DateTime(date.year, date.month, date.day)),
+      'start_time': formatLocal(startDateTime),
+      'end_time': formatLocal(endDateTime),
       'repeat_daily': repeatDaily,
       'priority': priority,
       'category': category,
-      'updated_at': DateTime.now().toIso8601String(),
+      'updated_at': formatLocal(DateTime.now()),
     };
 
     isSaving.value = true;
