@@ -1,25 +1,24 @@
 import 'package:get/get.dart';
 import '../../../data/services/supabase_service.dart';
-import 'package:android_intent_plus/android_intent.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeController extends GetxController {
   final _supabaseService = Get.find<SupabaseService>();
-  
+
   // Observable untuk menyimpan nama user
   final userName = 'User'.obs;
-  final isLoadingUser = true.obs;
-  
+  final isLoadingUser = false.obs;
+
   // Observable untuk tracking tugas hari ini
   final RxList<Map<String, dynamic>> todayTasks = <Map<String, dynamic>>[].obs;
   final completedTasksCount = 0.obs;
-  
+
   // Computed property untuk progress percentage
   int get progressPercentage {
     if (todayTasks.isEmpty) return 0;
     return ((completedTasksCount.value / todayTasks.length) * 100).round();
   }
-  
+
   double get progressValue {
     if (todayTasks.isEmpty) return 0.0;
     return completedTasksCount.value / todayTasks.length;
@@ -28,13 +27,16 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadUserData();
-    _loadTodayTasks();
   }
 
   @override
   void onReady() {
     super.onReady();
+    // Delay reactive updates to next frame to avoid "setState during build" error
+    Future.delayed(Duration.zero, () {
+      _loadUserData();
+      _loadTodayTasks();
+    });
   }
 
   @override
@@ -46,7 +48,7 @@ class HomeController extends GetxController {
   Future<void> _loadUserData() async {
     try {
       isLoadingUser.value = true;
-      
+
       final user = _supabaseService.currentUser;
       if (user != null) {
         // Ambil data user dari tabel users
@@ -55,7 +57,7 @@ class HomeController extends GetxController {
             .select('firstname, lastname, name')
             .eq('id', user.id)
             .single();
-        
+
         // Gunakan firstname dan lastname jika ada, jika tidak gunakan name atau email
         if (response['firstname'] != null && response['lastname'] != null) {
           userName.value = '${response['firstname']} ${response['lastname']}';
@@ -80,32 +82,29 @@ class HomeController extends GetxController {
   // Fungsi untuk buka Gemini AI
   Future<void> openGeminiAI() async {
     try {
-      // Coba buka aplikasi Gemini
-      final intent = AndroidIntent(
-        action: 'android.intent.action.MAIN',
-        package: 'com.google.android.apps.bard',
-      );
+      // Buka Gemini AI di browser
+      await openGeminiInBrowser();
     } catch (e) {
       print('Error: $e');
       openGeminiInBrowser();
     }
   }
-  
+
   Future<void> openGeminiInBrowser() async {
     final url = Uri.parse('https://gemini.google.com');
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
-  
+
   Future<void> openPlayStore() async {
-    final url = Uri.parse('https://play.google.com/store/apps/details?id=com.google.android.apps.bard');
+    final url = Uri.parse(
+      'https://play.google.com/store/apps/details?id=com.google.android.apps.bard',
+    );
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
-  
-
 
   // Mengambil tugas hari ini dari Supabase
   Future<void> _loadTodayTasks() async {
@@ -115,14 +114,16 @@ class HomeController extends GetxController {
         print('User not logged in, cannot load tasks');
         return;
       }
-      
+
       // Dapatkan tanggal hari ini (tanpa waktu)
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
-      
-      print('Loading tasks for today: ${startOfDay.toString()} to ${endOfDay.toString()}');
-      
+
+      print(
+        'Loading tasks for today: ${startOfDay.toString()} to ${endOfDay.toString()}',
+      );
+
       // Query schedules untuk hari ini
       final data = await _supabaseService.client
           .from('schedules')
@@ -131,22 +132,22 @@ class HomeController extends GetxController {
           .gte('start_time', startOfDay.toIso8601String())
           .lt('start_time', endOfDay.toIso8601String())
           .order('start_time', ascending: true);
-      
+
       print('Received ${(data as List).length} schedules from database');
-      
+
       final list = List<Map<String, dynamic>>.from(data);
-      
+
       // Tambahkan properti isCompleted untuk setiap task (hanya di memori, tidak persist)
       for (var task in list) {
         task['isCompleted'] = false; // Default semua belum selesai
         task['title'] = task['title'] ?? 'Tugas'; // Fallback jika title null
       }
-      
+
       todayTasks.assignAll(list);
-      
+
       // Reset hitungan tugas yang sudah selesai
       completedTasksCount.value = 0;
-      
+
       print('Loaded ${todayTasks.length} tasks for today');
     } catch (e) {
       print('Error loading today tasks: $e');
@@ -155,29 +156,30 @@ class HomeController extends GetxController {
       completedTasksCount.value = 0;
     }
   }
-  
+
   // Toggle status tugas (hanya di memori, tidak persist ke database)
   void toggleTaskCompletion(int index) {
     if (index >= 0 && index < todayTasks.length) {
       final task = todayTasks[index];
       final newStatus = !(task['isCompleted'] ?? false);
-      
+
       // Update di list lokal saja
       todayTasks[index]['isCompleted'] = newStatus;
       todayTasks.refresh();
-      
+
       // Update hitungan tugas yang selesai
-      completedTasksCount.value = todayTasks.where((task) => task['isCompleted'] == true).length;
-      
-      print('Task ${task['title']} marked as ${newStatus ? "completed" : "incomplete"}');
+      completedTasksCount.value = todayTasks
+          .where((task) => task['isCompleted'] == true)
+          .length;
+
+      print(
+        'Task ${task['title']} marked as ${newStatus ? "completed" : "incomplete"}',
+      );
     }
   }
-  
+
   // Refresh semua data
   Future<void> refreshData() async {
-    await Future.wait([
-      _loadUserData(),
-      _loadTodayTasks(),
-    ]);
+    await Future.wait([_loadUserData(), _loadTodayTasks()]);
   }
 }

@@ -38,8 +38,16 @@ class ProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _attachListeners();
-    fetchProfile();
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    // Delay reactive updates to next frame to avoid "setState during build" error
+    Future.delayed(Duration.zero, () {
+      _attachListeners();
+      fetchProfile();
+    });
   }
 
   @override
