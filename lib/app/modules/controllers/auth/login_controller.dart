@@ -86,8 +86,6 @@ class LoginController extends GetxController {
       final authProvider = Get.find<AuthProvider>();
       await authProvider.signInWithGoogle();
 
-      // Get current user after OAuth login
-      final supabaseService = Get.find<AuthProvider>();
       // Note: OAuth login may require checking Supabase auth state
       // For now, we'll assume the user is available after signInWithGoogle completes
       // The app shell should handle the navigation and profile fetch
