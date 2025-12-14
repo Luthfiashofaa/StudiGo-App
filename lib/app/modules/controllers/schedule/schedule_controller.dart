@@ -39,7 +39,12 @@ class ScheduleController extends GetxController {
           .from('schedules')
           .select()
           .eq('user_id', user.id)
-          .order('start_time', ascending: true);
+          .order('start_time', ascending: true)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () =>
+                throw Exception('Request timeout, cek koneksi internet'),
+          );
 
       final list = List<Map<String, dynamic>>.from(data);
 
@@ -49,23 +54,45 @@ class ScheduleController extends GetxController {
         schedules.assignAll(
           list.where((item) {
             final raw = item['start_time']?.toString();
-            final dt = raw != null ? DateTime.tryParse(raw) : null;
+            // Parse as local time to avoid UTC shift
+            DateTime? dt;
+            if (raw != null) {
+              // If stored as "YYYY-MM-DD HH:MM:SS", parse directly without UTC conversion
+              try {
+                dt = DateTime.parse(raw.replaceAll(' ', 'T'));
+              } catch (_) {
+                dt = DateTime.tryParse(raw);
+              }
+            }
             if (dt == null) return false;
-            return dt.isAfter(
-                  start.subtract(const Duration(milliseconds: 1)),
-                ) &&
-                dt.isBefore(end);
+            // Compare only date parts to avoid timezone issues
+            final itemDate = DateTime(dt.year, dt.month, dt.day);
+            return itemDate.year == date.year &&
+                itemDate.month == date.month &&
+                itemDate.day == date.day;
           }),
         );
       } else {
         schedules.assignAll(list);
       }
     } on PostgrestException catch (e) {
-      throw Exception(e.message);
+      Get.snackbar('Error DB', e.message);
     } on AuthRetryableFetchException catch (e) {
       await _handleExpiredSession(
         'Sesi auth kedaluwarsa, silakan login lagi. (${e.message})',
       );
+    } catch (e) {
+      // Handle network errors (connection reset, timeout, etc)
+      final msg = e.toString();
+      if (msg.contains('Connection') || msg.contains('timeout')) {
+        Get.snackbar(
+          'Koneksi Gagal',
+          'Tidak dapat terhubung ke server. Periksa internet Anda.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      } else {
+        Get.snackbar('Error', msg);
+      }
     } finally {
       isLoading.value = false;
     }
