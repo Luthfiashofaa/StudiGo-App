@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'app/routes/app_pages.dart';
-import 'app/data/services/supabase_service.dart';
 import 'app/data/services/auth_persistence_service.dart';
+import 'app/data/services/notification_service.dart';
+import 'app/data/services/supabase_service.dart';
 import 'app/data/providers/auth_provider.dart';
 import 'app/data/services/deeplink_service.dart';
+import 'app/routes/app_pages.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,10 @@ Future<void> main() async {
   final authPersistence = AuthPersistenceService();
   await authPersistence.init();
   Get.put(authPersistence);
+
+  // Initialize NotificationService early
+  final notificationService = NotificationService();
+  await notificationService.initialize();
 
   // Initialize SupabaseService (loads .env and initializes client)
   await Get.putAsync(() => SupabaseService().init());
