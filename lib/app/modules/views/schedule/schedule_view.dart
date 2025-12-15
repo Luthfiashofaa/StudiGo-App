@@ -65,6 +65,170 @@ class _ScheduleViewState extends State<ScheduleView> {
     super.dispose();
   }
 
+  Widget _buildScheduleCard(Map<String, dynamic> t, bool isTablet) {
+    final Color border = _priorityColor(t['priority']?.toString()).withOpacity(0.9);
+    final String time = _formatRange(t);
+    final String title = t['title']?.toString() ?? '';
+    final String desc = t['description']?.toString() ?? '-';
+    final String priority = t['priority']?.toString() ?? '';
+    final String category = t['category']?.toString() ?? 'Kategori';
+
+    return GestureDetector(
+      onTap: () async {
+        Get.put(AddScheduleController());
+        final result = await Get.to<int>(AddScheduleView(scheduleData: t));
+        if (result != null) {
+          // handled in shell
+        } else {
+          await _refreshSchedules();
+        }
+        Get.delete<AddScheduleController>();
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
+          border: Border.all(
+            color: border.withOpacity(0.3),
+            width: isTablet ? 2.5 : 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: isTablet ? 12 : 10,
+              offset: Offset(0, isTablet ? 8 : 6),
+            ),
+          ],
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: isTablet ? 8 : 6,
+                decoration: BoxDecoration(
+                  color: border.withOpacity(0.95),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(isTablet ? 16 : 12),
+                    bottomLeft: Radius.circular(isTablet ? 16 : 12),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 18 : 14,
+                    vertical: isTablet ? 16 : 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.view_in_ar,
+                                      size: isTablet ? 18 : 16,
+                                      color: border.withOpacity(0.95),
+                                    ),
+                                    SizedBox(width: isTablet ? 10 : 8),
+                                    Text(
+                                      time,
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: isTablet ? 15 : 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: isTablet ? 8 : 6),
+                                Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 22 : 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: isTablet ? 10 : 8),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.redAccent,
+                                  size: isTablet ? 26 : 24,
+                                ),
+                                onPressed: () => _confirmDelete(t['id'].toString()),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: isTablet ? 10 : 8),
+                      Text(
+                        desc,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: isTablet ? 16 : 14,
+                        ),
+                      ),
+                      SizedBox(height: isTablet ? 14 : 12),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.import_contacts,
+                            size: isTablet ? 18 : 16,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(width: isTablet ? 8 : 6),
+                          Text(
+                            category,
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: isTablet ? 15 : 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          _PriorityBadge(
+                            color: _priorityColor(priority),
+                            size: isTablet ? 22 : 18,
+                          ),
+                          SizedBox(width: isTablet ? 10 : 8),
+                          Text(
+                            priority.isEmpty ? 'Prioritas' : 'Prioritas $priority',
+                            style: TextStyle(
+                              color: _priorityColor(priority),
+                              fontWeight: FontWeight.w700,
+                              fontSize: isTablet ? 15 : 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _refreshSchedules() async {
     await _controller.fetchSchedules(date: _selectedDate);
   }
@@ -401,7 +565,18 @@ class _ScheduleViewState extends State<ScheduleView> {
                             dateObj.month == _selectedDate.month &&
                             dateObj.day == _selectedDate.day;
 
-                        final cardSize = isTablet ? 70.0 : 64.0;
+                        final cardSize = isTablet ? 72.0 : 64.0;
+                        final selectedColor = isTablet
+                          ? const Color(0xFF7FB3FF)
+                          : const Color(0xFF9BBEFF);
+                        final selectedBorder = isTablet
+                          ? const Color(0xFF4C8DFF)
+                          : const Color(0xFF0059FF);
+                        final unselectedColor =
+                          isTablet ? const Color(0xFFF5F7FB) : Colors.white;
+                        final unselectedBorder = isTablet
+                          ? const Color(0xFFB7CCFF)
+                          : const Color(0xFF9BBEFF);
 
                         return GestureDetector(
                           onTap: () async {
@@ -417,15 +592,15 @@ class _ScheduleViewState extends State<ScheduleView> {
                                 height: cardSize,
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF9BBEFF)
-                                      : Colors.white,
+                                      ? selectedColor
+                                      : unselectedColor,
                                   borderRadius: BorderRadius.circular(
                                     isTablet ? 14 : 12,
                                   ),
                                   border: Border.all(
                                     color: isSelected
-                                        ? const Color(0xFF0059FF)
-                                        : const Color(0xFF9BBEFF),
+                                        ? selectedBorder
+                                        : unselectedBorder,
                                     width: isTablet ? 2 : 1,
                                   ),
                                 ),
@@ -509,6 +684,27 @@ class _ScheduleViewState extends State<ScheduleView> {
                         );
                       }
 
+                      if (isTablet) {
+                        return RefreshIndicator(
+                          onRefresh: _refreshSchedules,
+                          child: GridView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 18,
+                              mainAxisSpacing: 18,
+                              childAspectRatio: 1.85,
+                            ),
+                            itemCount: _controller.schedules.length,
+                            itemBuilder: (context, index) {
+                              final t = _controller.schedules[index];
+                              return _buildScheduleCard(t, isTablet);
+                            },
+                          ),
+                        );
+                      }
+
                       return RefreshIndicator(
                         onRefresh: _refreshSchedules,
                         child: ListView.separated(
@@ -519,236 +715,7 @@ class _ScheduleViewState extends State<ScheduleView> {
                           ),
                           itemBuilder: (context, index) {
                             final t = _controller.schedules[index];
-                            final Color border = _priorityColor(
-                              t['priority']?.toString(),
-                            ).withOpacity(0.9);
-                            final String time = _formatRange(t);
-                            final String title = t['title']?.toString() ?? '';
-                            final String desc =
-                                t['description']?.toString() ?? '-';
-                            final String priority =
-                                t['priority']?.toString() ?? '';
-                            final String category =
-                                t['category']?.toString() ?? 'Kategori';
-
-                            return GestureDetector(
-                              onTap: () async {
-                                // Register controller before opening view
-                                Get.put(AddScheduleController());
-                                final result = await Get.to<int>(
-                                  AddScheduleView(scheduleData: t),
-                                );
-                                // If user navigated away via navbar in AddScheduleView,
-                                // avoid popping the root to prevent a black screen.
-                                if (result != null) {
-                                  // Tab change handled by ShellController inside AddScheduleView.
-                                } else {
-                                  // User just saved/closed normally, refresh schedules
-                                  await _refreshSchedules();
-                                }
-                                // Clean up controller after closing view
-                                Get.delete<AddScheduleController>();
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(
-                                    isTablet ? 16 : 12,
-                                  ),
-                                  border: Border.all(
-                                    color: border.withOpacity(0.3),
-                                    width: isTablet ? 2.5 : 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: isTablet ? 12 : 10,
-                                      offset: Offset(0, isTablet ? 8 : 6),
-                                    ),
-                                  ],
-                                ),
-                                child: IntrinsicHeight(
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Container(
-                                        width: isTablet ? 8 : 6,
-                                        decoration: BoxDecoration(
-                                          color: border.withOpacity(0.95),
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(
-                                              isTablet ? 16 : 12,
-                                            ),
-                                            bottomLeft: Radius.circular(
-                                              isTablet ? 16 : 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: isTablet ? 18 : 14,
-                                            vertical: isTablet ? 16 : 12,
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Row(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .center,
-                                                          children: [
-                                                            Icon(
-                                                              Icons.view_in_ar,
-                                                              size: isTablet
-                                                                  ? 18
-                                                                  : 16,
-                                                              color: border
-                                                                  .withOpacity(
-                                                                0.95,
-                                                              ),
-                                                            ),
-                                                            SizedBox(
-                                                              width: isTablet
-                                                                  ? 10
-                                                                  : 8,
-                                                            ),
-                                                            Text(
-                                                              time,
-                                                              style: TextStyle(
-                                                                color:
-                                                                    Colors.grey,
-                                                                fontSize:
-                                                                    isTablet
-                                                                        ? 15
-                                                                        : 13,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        SizedBox(
-                                                          height:
-                                                              isTablet ? 8 : 6,
-                                                        ),
-                                                        Text(
-                                                          title,
-                                                          style: TextStyle(
-                                                            fontSize: isTablet
-                                                                ? 22
-                                                                : 18,
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    width: isTablet ? 10 : 8,
-                                                  ),
-                                                  Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      IconButton(
-                                                        icon: Icon(
-                                                          Icons.delete_outline,
-                                                          color: Colors
-                                                              .redAccent,
-                                                          size:
-                                                              isTablet ? 26 : 24,
-                                                        ),
-                                                        onPressed: () =>
-                                                            _confirmDelete(
-                                                          t['id'].toString(),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(
-                                                height: isTablet ? 10 : 8,
-                                              ),
-                                              Text(
-                                                desc,
-                                                maxLines: 3,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  color: Colors.black54,
-                                                  fontSize: isTablet ? 16 : 14,
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                height: isTablet ? 14 : 12,
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.import_contacts,
-                                                    size: isTablet ? 18 : 16,
-                                                    color: Colors.grey,
-                                                  ),
-                                                  SizedBox(
-                                                    width: isTablet ? 8 : 6,
-                                                  ),
-                                                  Text(
-                                                    category,
-                                                    style: TextStyle(
-                                                      color: Colors.grey,
-                                                      fontSize:
-                                                          isTablet ? 15 : 13,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                  const Spacer(),
-                                                  _PriorityBadge(
-                                                    color: _priorityColor(
-                                                        priority),
-                                                    size: isTablet ? 22 : 18,
-                                                  ),
-                                                  SizedBox(
-                                                    width: isTablet ? 10 : 8,
-                                                  ),
-                                                  Text(
-                                                    priority.isEmpty
-                                                        ? 'Prioritas'
-                                                        : 'Prioritas $priority',
-                                                    style: TextStyle(
-                                                      color: _priorityColor(
-                                                        priority,
-                                                      ),
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      fontSize:
-                                                          isTablet ? 15 : 13,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
+                            return _buildScheduleCard(t, isTablet);
                           },
                         ),
                       );
