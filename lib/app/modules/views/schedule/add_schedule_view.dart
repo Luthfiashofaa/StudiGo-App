@@ -639,16 +639,14 @@ class _AddScheduleViewState extends State<AddScheduleView> {
           ),
         ),
         SizedBox(height: isTablet ? 12 : 8),
-        _card(
-          child: Wrap(
-            spacing: isTablet ? 24 : 16,
-            runSpacing: isTablet ? 12 : 8,
-            children: [
-              _priorityChip('Tinggi', isTablet),
-              _priorityChip('Sedang', isTablet),
-              _priorityChip('Rendah', isTablet),
-            ],
-          ),
+        Row(
+          children: [
+            Expanded(child: _priorityChip('Rendah', isTablet)),
+            SizedBox(width: isTablet ? 14 : 10),
+            Expanded(child: _priorityChip('Sedang', isTablet)),
+            SizedBox(width: isTablet ? 14 : 10),
+            Expanded(child: _priorityChip('Tinggi', isTablet)),
+          ],
         ),
         SizedBox(height: isTablet ? 30 : 24),
         Center(
@@ -789,53 +787,73 @@ class _AddScheduleViewState extends State<AddScheduleView> {
   Widget _priorityChip(String label, [bool isTablet = false]) {
     final bool selected = _priority == label;
 
-    // map label to color when selected
-    Color selectedColor;
-    Color selectedTextColor = Colors.white;
+    Color bgColor;
+    Color borderColor;
+    Color textColor;
+    
     switch (label) {
       case 'Tinggi':
-        selectedColor = Colors.red;
+        bgColor = selected ? const Color(0xFFEF5350) : const Color(0xFFFFCDD2);
+        borderColor = const Color(0xFFEF5350);
+        textColor = selected ? Colors.white : const Color(0xFFD32F2F);
         break;
       case 'Sedang':
-        selectedColor = Colors.amber; // yellow-ish
-        // use dark text on yellow for readability
-        selectedTextColor = Colors.black87;
+        bgColor = selected ? const Color(0xFFFFA726) : const Color(0xFFFFE0B2);
+        borderColor = const Color(0xFFFFA726);
+        textColor = selected ? Colors.white : const Color(0xFFF57C00);
         break;
       case 'Rendah':
-        selectedColor = Colors.green;
+        bgColor = selected ? const Color(0xFF66BB6A) : const Color(0xFFC8E6C9);
+        borderColor = const Color(0xFF66BB6A);
+        textColor = selected ? Colors.white : const Color(0xFF2E7D32);
         break;
       default:
-        selectedColor = const Color(0xFF2D7DF6);
+        bgColor = Colors.grey.shade300;
+        borderColor = Colors.grey;
+        textColor = Colors.grey.shade800;
     }
 
     return GestureDetector(
       onTap: () => setState(() => _priority = label),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(
-          vertical: isTablet ? 10 : 8,
-          horizontal: isTablet ? 20 : 18,
+          vertical: isTablet ? 16 : 14,
+          horizontal: isTablet ? 12 : 10,
         ),
         decoration: BoxDecoration(
-          color: selected ? selectedColor : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: borderColor,
+            width: selected ? 2.5 : 1.5,
+          ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: selectedColor.withOpacity(0.25),
-                    blurRadius: 8,
+                    color: borderColor.withOpacity(0.3),
+                    blurRadius: 12,
                     offset: const Offset(0, 4),
+                    spreadRadius: 2,
                   ),
                 ]
-              : null,
-          border: Border.all(
-            color: selected ? Colors.transparent : Colors.grey.shade300,
-          ),
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? selectedTextColor : Colors.grey.shade800,
-            fontWeight: FontWeight.w700,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+              fontSize: isTablet ? 15 : 14,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
       ),
