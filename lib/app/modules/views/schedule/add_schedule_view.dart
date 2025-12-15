@@ -499,6 +499,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
+                        fontSize: isTablet ? 18 : 17,
                       ),
                     ),
                   ],
@@ -528,8 +529,8 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                   'Kategori',
                   style: TextStyle(
                     color: Colors.grey.shade800,
-                    fontWeight: FontWeight.w900,
-                    fontSize: isTablet ? 22 : 20,
+                    fontWeight: FontWeight.w700,
+                    fontSize: isTablet ? 20 : 19,
                   ),
                 ),
               ),
