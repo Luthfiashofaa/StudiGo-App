@@ -16,12 +16,53 @@ class ScheduleView extends StatefulWidget {
 class _ScheduleViewState extends State<ScheduleView> {
   late final ScheduleController _controller;
   DateTime _selectedDate = DateTime.now();
+  late final ScrollController _dateScrollController;
 
   @override
   void initState() {
     super.initState();
+    _dateScrollController = ScrollController();
     _controller = Get.put(ScheduleController());
     _controller.fetchSchedules(date: _selectedDate);
+    
+    // Scroll to today's date after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToToday();
+    });
+  }
+
+  void _scrollToToday() {
+    final now = DateTime.now();
+    
+    if (now.year == _selectedDate.year && now.month == _selectedDate.month) {
+      // Today is in the current month
+      final dayIndex = now.day - 1;
+      final cardSize = MediaQuery.of(context).size.width >= 600 ? 70.0 : 64.0;
+      final spacing = 10.0;
+      final offset = dayIndex * (cardSize + spacing);
+      
+      _dateScrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  int _getDaysInMonth(DateTime date) {
+    final firstOfMonth = DateTime(date.year, date.month, 1);
+    final firstOfNextMonth = DateTime(
+      date.month == 12 ? date.year + 1 : date.year,
+      date.month == 12 ? 1 : date.month + 1,
+      1,
+    );
+    return firstOfNextMonth.difference(firstOfMonth).inDays;
+  }
+
+  @override
+  void dispose() {
+    _dateScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshSchedules() async {
@@ -29,8 +70,8 @@ class _ScheduleViewState extends State<ScheduleView> {
   }
 
   String _formatRange(Map<String, dynamic> item) {
-    final start = DateTime.tryParse(item['start_time']?.toString() ?? '');
-    final end = DateTime.tryParse(item['end_time']?.toString() ?? '');
+    final start = DateTime.tryParse(item['start_time']?.toString() ?? '')?.toLocal();
+    final end = DateTime.tryParse(item['end_time']?.toString() ?? '')?.toLocal();
     if (start == null || end == null) return '';
     String fmt(DateTime dt) =>
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -48,6 +89,58 @@ class _ScheduleViewState extends State<ScheduleView> {
       default:
         return const Color(0xFF2B7FFF);
     }
+  }
+
+  Color? _priorityDotColor(String? p) {
+    switch (p) {
+      case 'Tinggi':
+        return Colors.redAccent;
+      case 'Sedang':
+        return Colors.amber;
+      case 'Rendah':
+        return Colors.green;
+      default:
+        return null;
+    }
+  }
+
+  List<Color> _colorsForDate(DateTime date) {
+    final set = <Color>{};
+    for (final item in _controller.allSchedules) {
+      final bool repeats = item['repeat_daily'] == true;
+      final rawDate = item['date']?.toString();
+      final rawStart = item['start_time']?.toString();
+
+      DateTime? dateValue;
+      if (rawDate != null) {
+        try {
+          dateValue = DateTime.parse(rawDate.replaceAll(' ', 'T')).toLocal();
+        } catch (_) {
+          dateValue = DateTime.tryParse(rawDate)?.toLocal();
+        }
+      }
+      if (dateValue == null && rawStart != null) {
+        try {
+          dateValue = DateTime.parse(rawStart.replaceAll(' ', 'T')).toLocal();
+        } catch (_) {
+          dateValue = DateTime.tryParse(rawStart)?.toLocal();
+        }
+      }
+      if (dateValue == null) continue;
+
+      final itemDate = DateTime(dateValue.year, dateValue.month, dateValue.day);
+      final bool matches = repeats
+          ? !date.isBefore(itemDate)
+          : (itemDate.year == date.year &&
+              itemDate.month == date.month &&
+              itemDate.day == date.day);
+
+      if (matches) {
+        final c = _priorityDotColor(item['priority']?.toString());
+        if (c != null) set.add(c);
+      }
+    }
+    return set.toList();
   }
 
   Future<void> _confirmDelete(String id) async {
@@ -239,6 +332,7 @@ class _ScheduleViewState extends State<ScheduleView> {
                   SizedBox(
                     height: isTablet ? 100 : 86,
                     child: ListView.separated(
+                      controller: _dateScrollController,
                       scrollDirection: Axis.horizontal,
                       itemCount: days.length + 1,
                       separatorBuilder: (_, __) => SizedBox(
@@ -363,41 +457,32 @@ class _ScheduleViewState extends State<ScheduleView> {
                                 ),
                               ),
                               SizedBox(height: isTablet ? 8 : 6),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(width: isTablet ? 4 : 3),
-                                  CircleAvatar(
-                                    radius: isTablet ? 4 : 3,
-                                    backgroundColor: const Color.fromARGB(
-                                      255,
-                                      255,
-                                      0,
-                                      0,
-                                    ),
-                                  ),
-                                  SizedBox(width: isTablet ? 4 : 3),
-                                  CircleAvatar(
-                                    radius: isTablet ? 4 : 3,
-                                    backgroundColor: const Color.fromARGB(
-                                      255,
-                                      255,
-                                      238,
-                                      0,
-                                    ),
-                                  ),
-                                  SizedBox(width: isTablet ? 4 : 3),
-                                  CircleAvatar(
-                                    radius: isTablet ? 4 : 3,
-                                    backgroundColor: const Color.fromARGB(
-                                      255,
-                                      0,
-                                      255,
-                                      13,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              Obx(() {
+                                final colors = _colorsForDate(dateObj);
+                                if (colors.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(width: isTablet ? 4 : 3),
+                                    ...List.generate(colors.length, (i) {
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: isTablet ? 4 : 3,
+                                            backgroundColor: colors[i],
+                                          ),
+                                          if (i < colors.length - 1)
+                                            SizedBox(width: isTablet ? 4 : 3),
+                                        ],
+                                      );
+                                    }),
+                                    SizedBox(width: isTablet ? 4 : 3),
+                                  ],
+                                );
+                              }),
                             ],
                           ),
                         );
