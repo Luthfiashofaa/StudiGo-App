@@ -64,6 +64,7 @@ class AddScheduleController extends GetxController {
     if (!Get.isRegistered<ScheduleController>()) return;
     final scheduleCtrl = Get.find<ScheduleController>();
     final normalized = _normalizeScheduleMap(schedule);
+    // Update filtered list (current view)
     final idx = scheduleCtrl.schedules.indexWhere((e) => e['id'] == normalized['id']);
     if (idx >= 0) {
       debugPrint('Updating existing schedule at index $idx');
@@ -72,13 +73,25 @@ class AddScheduleController extends GetxController {
       debugPrint('Adding new schedule to local cache');
       scheduleCtrl.schedules.add(normalized);
     }
-    // Ensure sorted by start_time ascending for consistency with fetch
-    scheduleCtrl.schedules.sort((a, b) {
+
+    // Update full list (calendar dots, future fetch reuse)
+    final idxAll = scheduleCtrl.allSchedules.indexWhere((e) => e['id'] == normalized['id']);
+    if (idxAll >= 0) {
+      scheduleCtrl.allSchedules[idxAll] = normalized;
+    } else {
+      scheduleCtrl.allSchedules.add(normalized);
+    }
+
+    int _cmp(Map<String, dynamic> a, Map<String, dynamic> b) {
       final sa = a['start_time']?.toString();
       final sb = b['start_time']?.toString();
       return (sa ?? '').compareTo(sb ?? '');
-    });
+    }
+
+    scheduleCtrl.schedules.sort(_cmp);
+    scheduleCtrl.allSchedules.sort(_cmp);
     scheduleCtrl.schedules.refresh();
+    scheduleCtrl.allSchedules.refresh();
     debugPrint('Total schedules in cache: ${scheduleCtrl.schedules.length}');
 
     // Trigger home update - ensure it's always called
@@ -134,12 +147,12 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
-    // Format as UTC ISO 8601 to avoid timezone shifts in database
-    String formatUTC(DateTime dt) {
-      // Convert local to UTC for storage
-      final utc = dt.toUtc();
-      return utc.toIso8601String();
-    }
+    // Keep date in local (with offset) to avoid shifting the day when converted from/to UTC.
+    // Only start/end times are stored in UTC to keep comparisons consistent.
+    String formatLocalDate(DateTime dt) => dt.toIso8601String();
+
+    // Format as UTC ISO 8601 for time fields
+    String formatUTC(DateTime dt) => dt.toUtc().toIso8601String();
 
     debugPrint('[AddScheduleController] Creating schedule:');
     debugPrint('[AddScheduleController]   Local startDateTime: $startDateTime');
@@ -149,7 +162,8 @@ class AddScheduleController extends GetxController {
       'user_id': user.id,
       'title': title,
       'description': description,
-      'date': formatUTC(DateTime(date.year, date.month, date.day)),
+      // store date without UTC conversion to preserve selected calendar day
+      'date': formatLocalDate(DateTime(date.year, date.month, date.day)),
       'start_time': formatUTC(startDateTime),
       'end_time': formatUTC(endDateTime),
       'repeat_daily': repeatDaily,
@@ -217,11 +231,8 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
-    // Format as UTC ISO 8601 to avoid timezone shifts in database
-    String formatUTC(DateTime dt) {
-      final utc = dt.toUtc();
-      return utc.toIso8601String();
-    }
+    String formatLocalDate(DateTime dt) => dt.toIso8601String();
+    String formatUTC(DateTime dt) => dt.toUtc().toIso8601String();
 
     debugPrint('[AddScheduleController] Updating schedule:');
     debugPrint('[AddScheduleController]   Local startDateTime: $startDateTime');
@@ -230,7 +241,8 @@ class AddScheduleController extends GetxController {
     final payload = {
       'title': title,
       'description': description,
-      'date': formatUTC(DateTime(date.year, date.month, date.day)),
+        // keep date in local to avoid shifting day
+        'date': formatLocalDate(DateTime(date.year, date.month, date.day)),
       'start_time': formatUTC(startDateTime),
       'end_time': formatUTC(endDateTime),
       'repeat_daily': repeatDaily,

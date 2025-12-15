@@ -32,6 +32,63 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
   List<String> categories = ['Belajar', 'Istirahat', 'Hiburan', 'Tugas'];
 
+  void _showTopNotification(String message, Color bgColor) {
+    if (!mounted) return;
+    
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 60,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: bgColor.withOpacity(0.8),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: bgColor.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ),
+    );
+    
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (overlayEntry.mounted) {
+        overlayEntry.remove();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,8 +109,8 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
       final startRaw = sched['start_time']?.toString();
       final endRaw = sched['end_time']?.toString();
-      final start = startRaw != null ? DateTime.tryParse(startRaw) : null;
-      final end = endRaw != null ? DateTime.tryParse(endRaw) : null;
+      final start = startRaw != null ? DateTime.tryParse(startRaw)?.toLocal() : null;
+      final end = endRaw != null ? DateTime.tryParse(endRaw)?.toLocal() : null;
       if (start != null) {
         _selectedDate = DateTime(start.year, start.month, start.day);
         _startTime = TimeOfDay(hour: start.hour, minute: start.minute);
@@ -140,7 +197,13 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       if (_dateError) missing.add('Tanggal');
       if (_timeError) missing.add('Waktu mulai & selesai');
       if (_categoryError) missing.add('Kategori');
-      Get.snackbar('Validasi', 'Lengkapi field: ${missing.join(', ')}');
+      
+      if (mounted) {
+        _showTopNotification(
+          'Lengkapi field: ${missing.join(', ')}',
+          Colors.orange.shade600,
+        );
+      }
       return;
     }
 
@@ -149,7 +212,12 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     final endTotalMinutes = (_endTime!.hour * 60) + _endTime!.minute;
     if (endTotalMinutes <= startTotalMinutes) {
       setState(() => _timeError = true);
-      Get.snackbar('Validasi', 'Waktu selesai harus setelah waktu mulai');
+      if (mounted) {
+        _showTopNotification(
+          'Waktu selesai harus setelah waktu mulai',
+          Colors.red.shade600,
+        );
+      }
       return;
     }
 
@@ -189,15 +257,31 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       }
 
       if (!mounted) return;
-      Get.snackbar(
-        'Berhasil',
+      _showTopNotification(
         _editingId != null
             ? 'Jadwal berhasil diperbarui'
             : 'Jadwal berhasil disimpan',
+        Colors.green.shade600,
       );
-      Navigator.of(context).maybePop();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) Navigator.of(context).maybePop();
+      });
     } catch (e) {
-      Get.snackbar('Gagal', e.toString());
+      if (mounted) {
+        String errorMessage = 'Terjadi kesalahan saat menyimpan jadwal';
+        if (e.toString().contains('login')) {
+          errorMessage = 'Silakan login terlebih dahulu';
+        } else if (e.toString().contains('network') || e.toString().contains('timeout')) {
+          errorMessage = 'Gagal koneksi, periksa internet Anda';
+        } else {
+          errorMessage = e.toString().replaceAll('Exception: ', '').trim();
+        }
+        _showTopNotification(
+          errorMessage,
+          Colors.red.shade600,
+        );
+      }
+      debugPrint('[AddScheduleView] Save error: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
