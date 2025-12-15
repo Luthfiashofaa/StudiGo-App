@@ -24,6 +24,11 @@ class _AddScheduleViewState extends State<AddScheduleView> {
   String _priority = 'Tinggi';
   String? _editingId;
   bool _isSaving = false;
+  bool _nameError = false;
+  bool _descError = false;
+  bool _dateError = false;
+  bool _timeError = false;
+  bool _categoryError = false;
 
   List<String> categories = ['Belajar', 'Istirahat', 'Hiburan', 'Tugas'];
 
@@ -88,13 +93,15 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     return '${fmt(_startTime!)} - ${fmt(_endTime!)}';
   }
 
-  Widget _card({required Widget child}) {
+  Widget _card({required Widget child, bool isError = false}) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: isError ? Colors.red.shade300 : Colors.grey.shade200,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -118,18 +125,41 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     final title = _nameCtrl.text.trim();
     final description = _descCtrl.text.trim();
 
-    if (title.isEmpty) {
-      Get.snackbar('Validasi', 'Nama jadwal wajib diisi');
+    setState(() {
+      _nameError = title.isEmpty;
+      _descError = description.isEmpty;
+      _dateError = _selectedDate == null;
+      _timeError = _startTime == null || _endTime == null;
+      _categoryError = _selectedCategory == null || _selectedCategory!.isEmpty;
+    });
+
+    if (_nameError || _descError || _dateError || _timeError || _categoryError) {
+      final missing = <String>[];
+      if (_nameError) missing.add('Nama jadwal');
+      if (_descError) missing.add('Deskripsi');
+      if (_dateError) missing.add('Tanggal');
+      if (_timeError) missing.add('Waktu mulai & selesai');
+      if (_categoryError) missing.add('Kategori');
+      Get.snackbar('Validasi', 'Lengkapi field: ${missing.join(', ')}');
       return;
     }
-    if (_selectedDate == null) {
-      Get.snackbar('Validasi', 'Tanggal wajib dipilih');
+
+    // Pastikan waktu selesai setelah waktu mulai untuk mencegah jadwal tidak valid.
+    final startTotalMinutes = (_startTime!.hour * 60) + _startTime!.minute;
+    final endTotalMinutes = (_endTime!.hour * 60) + _endTime!.minute;
+    if (endTotalMinutes <= startTotalMinutes) {
+      setState(() => _timeError = true);
+      Get.snackbar('Validasi', 'Waktu selesai harus setelah waktu mulai');
       return;
     }
-    if (_startTime == null || _endTime == null) {
-      Get.snackbar('Validasi', 'Waktu mulai & selesai wajib dipilih');
-      return;
-    }
+
+    setState(() {
+      _nameError = false;
+      _descError = false;
+      _dateError = false;
+      _timeError = false;
+      _categoryError = false;
+    });
 
     setState(() => _isSaving = true);
     try {
@@ -204,6 +234,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
               ),
               const SizedBox(height: 8),
               _card(
+                isError: _nameError,
                 child: TextField(
                   controller: _nameCtrl,
                   decoration: InputDecoration(
@@ -232,6 +263,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                     child: GestureDetector(
                       onTap: _pickDate,
                       child: _card(
+                        isError: _dateError,
                         child: Row(
                           children: [
                             Expanded(
@@ -270,6 +302,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                         });
                       },
                       child: _card(
+                        isError: _timeError,
                         child: Row(
                           children: [
                             Expanded(
@@ -296,6 +329,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
               ),
               const SizedBox(height: 8),
               _card(
+                isError: _descError,
                 child: TextField(
                   controller: _descCtrl,
                   minLines: 5,
@@ -399,7 +433,11 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey.shade300),
+                                border: Border.all(
+                                  color: _categoryError
+                                      ? Colors.red.shade300
+                                      : Colors.grey.shade300,
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -432,7 +470,9 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: Colors.grey.shade300,
+                                      color: _categoryError
+                                          ? Colors.red.shade300
+                                          : Colors.grey.shade300,
                                     ),
                                   ),
                                   child: Row(
@@ -463,8 +503,10 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                                   ),
                                 )
                                 .toList(),
-                            onChanged: (v) =>
-                                setState(() => _selectedCategory = v),
+                            onChanged: (v) => setState(() {
+                              _selectedCategory = v;
+                              _categoryError = false;
+                            }),
                           ),
                         ),
                       ),
