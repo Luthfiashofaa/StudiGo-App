@@ -113,20 +113,34 @@ class HomeView extends GetView<HomeController> {
                               children: [
                                 Row(
                                   children: [
-                                    CircleAvatar(
-                                      radius: avatarRadius,
-                                      backgroundColor: const Color(0xFFEEF6FF),
-                                      child: Icon(
-                                        Icons.person,
-                                        size: avatarRadius,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
+                                    Obx(() {
+                                      final hasAvatar =
+                                          controller.avatarUrl.value.isNotEmpty;
+                                      return CircleAvatar(
+                                        radius: avatarRadius,
+                                        backgroundColor: const Color(
+                                          0xFFEEF6FF,
+                                        ),
+                                        backgroundImage: hasAvatar
+                                            ? NetworkImage(
+                                                controller.avatarUrl.value,
+                                              )
+                                            : null,
+                                        child: hasAvatar
+                                            ? null
+                                            : Icon(
+                                                Icons.person,
+                                                size: avatarRadius,
+                                                color: Colors.blue,
+                                              ),
+                                      );
+                                    }),
                                     const SizedBox(width: 12),
                                     Obx(() {
                                       if (controller.isLoadingUser.value) {
                                         return Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               'Halo!',
@@ -146,7 +160,8 @@ class HomeView extends GetView<HomeController> {
                                         );
                                       }
                                       return Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Halo!',
@@ -190,20 +205,29 @@ class HomeView extends GetView<HomeController> {
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.auto_awesome, color: Colors.amber),
+                                        const Icon(
+                                          Icons.auto_awesome,
+                                          color: Colors.amber,
+                                        ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: const [
                                               Text(
                                                 'AI menyarankan kamu fokus pada tugas "Kalkulus" hari ini',
-                                                style: TextStyle(color: Colors.white),
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
                                               ),
                                               SizedBox(height: 4),
                                               Text(
                                                 'Tap untuk buka Gemini AI',
-                                                style: TextStyle(color: Colors.amber, fontSize: 12),
+                                                style: TextStyle(
+                                                  color: Colors.amber,
+                                                  fontSize: 12,
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -228,7 +252,8 @@ class HomeView extends GetView<HomeController> {
                                     ],
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text(
                                         'Progress',
@@ -238,33 +263,44 @@ class HomeView extends GetView<HomeController> {
                                         ),
                                       ),
                                       const SizedBox(height: 8),
-                                      Obx(() => Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          const Text(
-                                            'Dari target harian yang tercapai',
-                                            style: TextStyle(color: Colors.black54),
-                                          ),
-                                          Text(
-                                            '${controller.progressPercentage}%',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
+                                      Obx(
+                                        () => Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'Dari target harian yang tercapai',
+                                              style: TextStyle(
+                                                color: Colors.black54,
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      )),
+                                            Text(
+                                              '${controller.progressPercentage}%',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                       const SizedBox(height: 12),
-                                      Obx(() => ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: LinearProgressIndicator(
-                                          minHeight: 10,
-                                          value: controller.progressValue,
-                                          backgroundColor: Colors.grey.shade300,
-                                          valueColor: const AlwaysStoppedAnimation<Color>(
-                                            Colors.blue,
+                                      Obx(
+                                        () => ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          child: LinearProgressIndicator(
+                                            minHeight: 10,
+                                            value: controller.progressValue,
+                                            backgroundColor:
+                                                Colors.grey.shade300,
+                                            valueColor:
+                                                const AlwaysStoppedAnimation<
+                                                  Color
+                                                >(Colors.blue),
                                           ),
                                         ),
-                                      )),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -296,21 +332,30 @@ class HomeView extends GetView<HomeController> {
                                     return GridView.builder(
                                       padding: EdgeInsets.zero,
                                       shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
                                       itemCount: controller.todayTasks.length,
-                                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        mainAxisSpacing: 12,
-                                        crossAxisSpacing: 12,
-                                        childAspectRatio: 3.2,
-                                      ),
+                                      gridDelegate:
+                                          const SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: 2,
+                                            mainAxisSpacing: 12,
+                                            crossAxisSpacing: 12,
+                                            childAspectRatio: 3.2,
+                                          ),
                                       itemBuilder: (context, index) {
-                                        final task = controller.todayTasks[index];
+                                        final task =
+                                            controller.todayTasks[index];
                                         return _TaskCard(
-                                          icon: _getIconForTask(task['title'] ?? 'Task'),
-                                          title: task['title'] ?? 'Task ${index + 1}',
-                                          isCompleted: task['isCompleted'] ?? false,
-                                          onToggle: () => controller.toggleTaskCompletion(index),
+                                          icon: _getIconForTask(
+                                            task['title'] ?? 'Task',
+                                          ),
+                                          title:
+                                              task['title'] ??
+                                              'Task ${index + 1}',
+                                          isCompleted:
+                                              task['isCompleted'] ?? false,
+                                          onToggle: () => controller
+                                              .toggleTaskCompletion(index),
                                           isTablet: true,
                                         );
                                       },
@@ -320,16 +365,30 @@ class HomeView extends GetView<HomeController> {
                                     children: List.generate(
                                       controller.todayTasks.length,
                                       (index) {
-                                        final task = controller.todayTasks[index];
+                                        final task =
+                                            controller.todayTasks[index];
                                         return Padding(
                                           padding: EdgeInsets.only(
-                                            bottom: index < controller.todayTasks.length - 1 ? 12 : 0,
+                                            bottom:
+                                                index <
+                                                    controller
+                                                            .todayTasks
+                                                            .length -
+                                                        1
+                                                ? 12
+                                                : 0,
                                           ),
                                           child: _TaskCard(
-                                            icon: _getIconForTask(task['title'] ?? 'Task'),
-                                            title: task['title'] ?? 'Task ${index + 1}',
-                                            isCompleted: task['isCompleted'] ?? false,
-                                            onToggle: () => controller.toggleTaskCompletion(index),
+                                            icon: _getIconForTask(
+                                              task['title'] ?? 'Task',
+                                            ),
+                                            title:
+                                                task['title'] ??
+                                                'Task ${index + 1}',
+                                            isCompleted:
+                                                task['isCompleted'] ?? false,
+                                            onToggle: () => controller
+                                                .toggleTaskCompletion(index),
                                           ),
                                         );
                                       },
@@ -359,7 +418,7 @@ class _TaskCard extends StatelessWidget {
   final bool isCompleted;
   final VoidCallback onToggle;
   final bool isTablet;
-  
+
   const _TaskCard({
     Key? key,
     required this.icon,
@@ -426,9 +485,13 @@ class _TaskCard extends StatelessWidget {
 // Helper function untuk mendapatkan icon berdasarkan judul task
 IconData _getIconForTask(String title) {
   final lowerTitle = title.toLowerCase();
-  if (lowerTitle.contains('kalkulus') || lowerTitle.contains('math') || lowerTitle.contains('matematika')) {
+  if (lowerTitle.contains('kalkulus') ||
+      lowerTitle.contains('math') ||
+      lowerTitle.contains('matematika')) {
     return Icons.calculate;
-  } else if (lowerTitle.contains('programming') || lowerTitle.contains('code') || lowerTitle.contains('coding')) {
+  } else if (lowerTitle.contains('programming') ||
+      lowerTitle.contains('code') ||
+      lowerTitle.contains('coding')) {
     return Icons.code;
   } else if (lowerTitle.contains('fisika') || lowerTitle.contains('physics')) {
     return Icons.science;
