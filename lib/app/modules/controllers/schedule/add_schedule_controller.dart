@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/supabase_service.dart';
 import '../home/home_controller.dart';
+import 'schedule_controller.dart';
 
 class AddScheduleController extends GetxController {
   AddScheduleController({SupabaseService? supabase})
@@ -12,6 +13,93 @@ class AddScheduleController extends GetxController {
   final SupabaseService _supabase;
 
   final RxBool isSaving = false.obs;
+
+  DateTime? _parseToLocal(dynamic raw) {
+    if (raw is DateTime) return raw.toLocal();
+    if (raw is String) {
+      try {
+        // Parse as UTC (ISO 8601 format from database)
+        final utc = DateTime.parse(raw).toUtc();
+        final local = utc.toLocal();
+        debugPrint('[AddScheduleController] _parseToLocal: $raw -> $local (UTC+local)');
+        return local;
+      } catch (e) {
+        debugPrint('[AddScheduleController] _parseToLocal FAILED: $raw - $e');
+        return null;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _normalizeScheduleMap(Map<String, dynamic> schedule) {
+    final normalized = Map<String, dynamic>.from(schedule);
+
+    final startLocal = _parseToLocal(schedule['start_time']);
+    final endLocal = _parseToLocal(schedule['end_time']);
+    final dateLocal = _parseToLocal(schedule['date']);
+
+    debugPrint('[AddScheduleController] Normalizing schedule:');
+    debugPrint('[AddScheduleController]   Raw start_time: ${schedule['start_time']}');
+    debugPrint('[AddScheduleController]   Parsed start_time: $startLocal');
+
+    if (startLocal != null) {
+      normalized['start_time'] = startLocal.toIso8601String();
+      debugPrint('[AddScheduleController]   Normalized start_time: ${normalized['start_time']}');
+    }
+    if (endLocal != null) {
+      normalized['end_time'] = endLocal.toIso8601String();
+    }
+    if (dateLocal != null) {
+      normalized['date'] = DateTime(
+        dateLocal.year,
+        dateLocal.month,
+        dateLocal.day,
+      ).toIso8601String();
+    }
+
+    return normalized;
+  }
+
+  void _upsertLocalSchedule(Map<String, dynamic> schedule) {
+    if (!Get.isRegistered<ScheduleController>()) return;
+    final scheduleCtrl = Get.find<ScheduleController>();
+    final normalized = _normalizeScheduleMap(schedule);
+    final idx = scheduleCtrl.schedules.indexWhere((e) => e['id'] == normalized['id']);
+    if (idx >= 0) {
+      debugPrint('Updating existing schedule at index $idx');
+      scheduleCtrl.schedules[idx] = normalized;
+    } else {
+      debugPrint('Adding new schedule to local cache');
+      scheduleCtrl.schedules.add(normalized);
+    }
+    // Ensure sorted by start_time ascending for consistency with fetch
+    scheduleCtrl.schedules.sort((a, b) {
+      final sa = a['start_time']?.toString();
+      final sb = b['start_time']?.toString();
+      return (sa ?? '').compareTo(sb ?? '');
+    });
+    scheduleCtrl.schedules.refresh();
+    debugPrint('Total schedules in cache: ${scheduleCtrl.schedules.length}');
+
+    // Trigger home update - ensure it's always called
+    _triggerHomeUpdate();
+  }
+
+  void _triggerHomeUpdate() {
+    try {
+      debugPrint('[AddScheduleController] Triggering home update...');
+      if (!Get.isRegistered<HomeController>()) {
+        debugPrint('[AddScheduleController] HomeController not registered, putting it now');
+        Get.put(HomeController(), permanent: false);
+      }
+      final homeCtrl = Get.find<HomeController>();
+      debugPrint('[AddScheduleController] Found HomeController, calling updateTodayTasksFromSchedule');
+      homeCtrl.updateTodayTasksFromSchedule();
+      debugPrint('[AddScheduleController] updateTodayTasksFromSchedule completed');
+    } catch (e) {
+      debugPrint('[AddScheduleController] Error triggering home update: $e');
+    }
+  }
 
   Future<void> createSchedule({
     required String title,
@@ -46,19 +134,24 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
-    // Format as local time string (YYYY-MM-DD HH:MM:SS) to preserve date
-    String formatLocal(DateTime dt) {
-      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:00';
+    // Format as UTC ISO 8601 to avoid timezone shifts in database
+    String formatUTC(DateTime dt) {
+      // Convert local to UTC for storage
+      final utc = dt.toUtc();
+      return utc.toIso8601String();
     }
+
+    debugPrint('[AddScheduleController] Creating schedule:');
+    debugPrint('[AddScheduleController]   Local startDateTime: $startDateTime');
+    debugPrint('[AddScheduleController]   UTC start_time: ${formatUTC(startDateTime)}');
 
     final payload = {
       'user_id': user.id,
       'title': title,
       'description': description,
-      'date': formatLocal(DateTime(date.year, date.month, date.day)),
-      'start_time': formatLocal(startDateTime),
-      'end_time': formatLocal(endDateTime),
+      'date': formatUTC(DateTime(date.year, date.month, date.day)),
+      'start_time': formatUTC(startDateTime),
+      'end_time': formatUTC(endDateTime),
       'repeat_daily': repeatDaily,
       'priority': priority,
       'category': category,
@@ -66,16 +159,22 @@ class AddScheduleController extends GetxController {
 
     isSaving.value = true;
     try {
-      await _supabase.from('schedules').insert(payload);
-      
-      // Refresh HomeController data setelah berhasil menambah schedule
-      try {
-        if (Get.isRegistered<HomeController>()) {
-          Get.find<HomeController>().refreshData();
+      final inserted = await _supabase
+          .from('schedules')
+          .insert(payload)
+          .select()
+          .maybeSingle();
+
+      if (inserted is Map<String, dynamic>) {
+        _upsertLocalSchedule(inserted);
+      } else {
+        // fallback: refetch when no data returned
+        if (Get.isRegistered<ScheduleController>()) {
+          await Get.find<ScheduleController>().fetchSchedules();
         }
-      } catch (e) {
-        print('Warning: Could not refresh home controller: $e');
       }
+
+      _triggerHomeUpdate();
     } on PostgrestException catch (e) {
       throw Exception(e.message);
     } catch (_) {
@@ -118,40 +217,47 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
-    // Format as local time string (YYYY-MM-DD HH:MM:SS) to preserve date
-    String formatLocal(DateTime dt) {
-      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:00';
+    // Format as UTC ISO 8601 to avoid timezone shifts in database
+    String formatUTC(DateTime dt) {
+      final utc = dt.toUtc();
+      return utc.toIso8601String();
     }
+
+    debugPrint('[AddScheduleController] Updating schedule:');
+    debugPrint('[AddScheduleController]   Local startDateTime: $startDateTime');
+    debugPrint('[AddScheduleController]   UTC start_time: ${formatUTC(startDateTime)}');
 
     final payload = {
       'title': title,
       'description': description,
-      'date': formatLocal(DateTime(date.year, date.month, date.day)),
-      'start_time': formatLocal(startDateTime),
-      'end_time': formatLocal(endDateTime),
+      'date': formatUTC(DateTime(date.year, date.month, date.day)),
+      'start_time': formatUTC(startDateTime),
+      'end_time': formatUTC(endDateTime),
       'repeat_daily': repeatDaily,
       'priority': priority,
       'category': category,
-      'updated_at': formatLocal(DateTime.now()),
+      'updated_at': formatUTC(DateTime.now()),
     };
 
     isSaving.value = true;
     try {
-      await _supabase
+      final updated = await _supabase
           .from('schedules')
           .update(payload)
           .eq('id', id)
-          .eq('user_id', user.id);
-      
-      // Refresh HomeController data setelah berhasil update schedule
-      try {
-        if (Get.isRegistered<HomeController>()) {
-          Get.find<HomeController>().refreshData();
+          .eq('user_id', user.id)
+          .select()
+          .maybeSingle();
+
+      if (updated is Map<String, dynamic>) {
+        _upsertLocalSchedule(updated);
+      } else {
+        if (Get.isRegistered<ScheduleController>()) {
+          await Get.find<ScheduleController>().fetchSchedules();
         }
-      } catch (e) {
-        print('Warning: Could not refresh home controller: $e');
       }
+
+      _triggerHomeUpdate();
     } on PostgrestException catch (e) {
       throw Exception(e.message);
     } finally {

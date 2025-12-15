@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
@@ -7,6 +8,7 @@ import '../../../data/services/auth_persistence_service.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../bindings/auth/login_binding.dart';
 import '../../views/auth/login_view.dart';
+import '../home/home_controller.dart';
 
 class ScheduleController extends GetxController {
   ScheduleController({SupabaseService? supabase})
@@ -108,5 +110,16 @@ class ScheduleController extends GetxController {
         .eq('id', id)
         .eq('user_id', user.id);
     schedules.removeWhere((item) => item['id'] == id);
+    debugPrint('Schedule $id deleted from local cache');
+
+    // Trigger home update after delete so today's tasks refresh
+    if (Get.isRegistered<HomeController>()) {
+      try {
+        Get.find<HomeController>().updateTodayTasksFromSchedule();
+        debugPrint('Home controller updated after schedule delete');
+      } catch (e) {
+        debugPrint('Warning: Could not update home after delete: $e');
+      }
+    }
   }
 }
