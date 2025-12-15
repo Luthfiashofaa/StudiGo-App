@@ -11,6 +11,7 @@ class HomeController extends GetxController {
 
   // Observable untuk menyimpan nama user
   final userName = 'User'.obs;
+  final avatarUrl = ''.obs;
   final isLoadingUser = false.obs;
 
   // Observable untuk tracking tugas hari ini
@@ -59,8 +60,12 @@ class HomeController extends GetxController {
     final todayYear = now.year;
     final todayMonth = now.month;
     final todayDay = now.day;
-    debugPrint('[HomeController] Today date: $todayYear-${todayMonth.toString().padLeft(2, '0')}-${todayDay.toString().padLeft(2, '0')}');
-    debugPrint('[HomeController] Total schedules in ScheduleController: ${_scheduleController.schedules.length}');
+    debugPrint(
+      '[HomeController] Today date: $todayYear-${todayMonth.toString().padLeft(2, '0')}-${todayDay.toString().padLeft(2, '0')}',
+    );
+    debugPrint(
+      '[HomeController] Total schedules in ScheduleController: ${_scheduleController.schedules.length}',
+    );
 
     DateTime? parseLocal(dynamic raw) {
       if (raw is DateTime) return raw.toLocal();
@@ -80,10 +85,14 @@ class HomeController extends GetxController {
     // DEBUG: Log all schedules
     for (int i = 0; i < _scheduleController.schedules.length; i++) {
       final item = _scheduleController.schedules[i];
-      debugPrint('[HomeController] Schedule[$i]: title=${item['title']}, start_time_raw=${item['start_time']}');
+      debugPrint(
+        '[HomeController] Schedule[$i]: title=${item['title']}, start_time_raw=${item['start_time']}',
+      );
       final dt = parseLocal(item['start_time']);
       if (dt != null) {
-        debugPrint('[HomeController]   -> Parsed LOCAL: ${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour}:${dt.minute}');
+        debugPrint(
+          '[HomeController]   -> Parsed LOCAL: ${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour}:${dt.minute}',
+        );
       } else {
         debugPrint('[HomeController]   -> Parse FAILED');
       }
@@ -94,17 +103,24 @@ class HomeController extends GetxController {
       if (dt == null) {
         return false;
       }
-      final match = dt.year == todayYear && dt.month == todayMonth && dt.day == todayDay;
+      final match =
+          dt.year == todayYear && dt.month == todayMonth && dt.day == todayDay;
       return match;
     }).toList();
 
-    debugPrint('[HomeController] updateTodayTasksFromSchedule: Found ${todaySchedules.length} tasks for today');
+    debugPrint(
+      '[HomeController] updateTodayTasksFromSchedule: Found ${todaySchedules.length} tasks for today',
+    );
     if (todaySchedules.isNotEmpty) {
-      debugPrint('[HomeController] First task: ${todaySchedules.first['title']} - start_time: ${todaySchedules.first['start_time']}');
+      debugPrint(
+        '[HomeController] First task: ${todaySchedules.first['title']} - start_time: ${todaySchedules.first['start_time']}',
+      );
     }
 
     todayTasks.assignAll(todaySchedules);
-    debugPrint('[HomeController] todayTasks updated, count: ${todayTasks.length}');
+    debugPrint(
+      '[HomeController] todayTasks updated, count: ${todayTasks.length}',
+    );
   }
 
   @override
@@ -127,7 +143,7 @@ class HomeController extends GetxController {
         // Ambil data user dari tabel users
         final response = await _supabaseService.client
             .from('users')
-            .select('firstname, lastname, name')
+            .select('firstname, lastname, name, photo_url')
             .eq('id', user.id)
             .single();
 
@@ -139,6 +155,9 @@ class HomeController extends GetxController {
         } else {
           userName.value = user.email?.split('@').first ?? 'User';
         }
+
+        // Set avatar URL from database
+        avatarUrl.value = response['photo_url']?.toString() ?? '';
       }
     } catch (e) {
       debugPrint('Error loading user data: $e');
