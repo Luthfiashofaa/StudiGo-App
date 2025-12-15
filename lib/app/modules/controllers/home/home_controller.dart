@@ -37,30 +37,74 @@ class HomeController extends GetxController {
   }
 
   void _initScheduleListener() {
+    debugPrint('[HomeController] Initializing schedule listener...');
     if (Get.isRegistered<ScheduleController>()) {
+      debugPrint('[HomeController] ScheduleController already registered');
       _scheduleController = Get.find<ScheduleController>();
     } else {
+      debugPrint('[HomeController] Putting new ScheduleController');
       _scheduleController = Get.put(ScheduleController());
     }
+    debugPrint('[HomeController] Setting up ever() listener on schedules...');
     ever(_scheduleController.schedules, (_) {
-      _updateTodayTasksFromSchedule();
+      debugPrint('[HomeController] Schedules changed! Updating today tasks...');
+      updateTodayTasksFromSchedule();
     });
+    debugPrint('[HomeController] Schedule listener initialized successfully');
   }
 
-  void _updateTodayTasksFromSchedule() {
+  void updateTodayTasksFromSchedule() {
+    debugPrint('[HomeController] updateTodayTasksFromSchedule called');
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final todayYear = now.year;
+    final todayMonth = now.month;
+    final todayDay = now.day;
+    debugPrint('[HomeController] Today date: $todayYear-${todayMonth.toString().padLeft(2, '0')}-${todayDay.toString().padLeft(2, '0')}');
+    debugPrint('[HomeController] Total schedules in ScheduleController: ${_scheduleController.schedules.length}');
+
+    DateTime? parseLocal(dynamic raw) {
+      if (raw is DateTime) return raw.toLocal();
+      if (raw is String) {
+        try {
+          // Parse as UTC from database, convert to local
+          final utc = DateTime.parse(raw).toUtc();
+          final local = utc.toLocal();
+          return local;
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    // DEBUG: Log all schedules
+    for (int i = 0; i < _scheduleController.schedules.length; i++) {
+      final item = _scheduleController.schedules[i];
+      debugPrint('[HomeController] Schedule[$i]: title=${item['title']}, start_time_raw=${item['start_time']}');
+      final dt = parseLocal(item['start_time']);
+      if (dt != null) {
+        debugPrint('[HomeController]   -> Parsed LOCAL: ${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour}:${dt.minute}');
+      } else {
+        debugPrint('[HomeController]   -> Parse FAILED');
+      }
+    }
 
     final todaySchedules = _scheduleController.schedules.where((item) {
-      final raw = item['start_time']?.toString();
-      final dt = raw != null ? DateTime.tryParse(raw) : null;
-      if (dt == null) return false;
-      return dt.isAfter(startOfDay.subtract(const Duration(milliseconds: 1))) &&
-          dt.isBefore(endOfDay);
+      final dt = parseLocal(item['start_time']);
+      if (dt == null) {
+        return false;
+      }
+      final match = dt.year == todayYear && dt.month == todayMonth && dt.day == todayDay;
+      return match;
     }).toList();
 
+    debugPrint('[HomeController] updateTodayTasksFromSchedule: Found ${todaySchedules.length} tasks for today');
+    if (todaySchedules.isNotEmpty) {
+      debugPrint('[HomeController] First task: ${todaySchedules.first['title']} - start_time: ${todaySchedules.first['start_time']}');
+    }
+
     todayTasks.assignAll(todaySchedules);
+    debugPrint('[HomeController] todayTasks updated, count: ${todayTasks.length}');
   }
 
   @override
@@ -149,7 +193,7 @@ class HomeController extends GetxController {
       }
 
       // Update today tasks dari schedule controller
-      _updateTodayTasksFromSchedule();
+      updateTodayTasksFromSchedule();
 
       // Reset hitungan tugas yang sudah selesai
       completedTasksCount.value = 0;
