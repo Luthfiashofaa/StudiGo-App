@@ -334,6 +334,7 @@ class ProfileController extends GetxController {
     final user = _supabase.currentUser;
     if (user == null) {
       debugPrint('_uploadAvatarIfNeeded: user is null, cannot upload');
+      Get.snackbar('Error', 'User not logged in');
       return null;
     }
 
@@ -346,28 +347,86 @@ class ProfileController extends GetxController {
 
       if (!exists) {
         debugPrint('_uploadAvatarIfNeeded: File does not exist at $avatarPath');
+        Get.snackbar('Error', 'Image file not found');
         return avatarUrl;
       }
 
-      final ext = avatarPath!.split('.').last;
-      final path = 'avatars/${user.id}.$ext';
-      debugPrint('_uploadAvatarIfNeeded: Uploading to $path');
+      // Get file extension and detect content type
+      final ext = avatarPath!.split('.').last.toLowerCase();
+      String contentType = 'image/jpeg'; // default
+      switch (ext) {
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case 'gif':
+          contentType = 'image/gif';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+      }
 
-      await _supabase.storage
-          .from('avatars')
-          .upload(path, file, fileOptions: const FileOptions(upsert: true));
-
-      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(path);
+      // Use unique filename with timestamp to avoid caching issues
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final path = '${user.id}/$timestamp.$ext';
       debugPrint(
-        '_uploadAvatarIfNeeded: Upload successful, publicUrl = $publicUrl',
+        '_uploadAvatarIfNeeded: Uploading to bucket=avatars, path=$path with contentType=$contentType',
       );
 
-      avatarUrl = publicUrl?.toString();
+      // First, try to remove old avatar if exists
+      try {
+        final existingFiles = await _supabase.storage
+            .from('avatars')
+            .list(path: user.id);
+        for (final file in existingFiles) {
+          await _supabase.storage.from('avatars').remove([
+            '${user.id}/${file.name}',
+          ]);
+        }
+      } catch (e) {
+        debugPrint('Could not remove old avatars: $e');
+      }
+
+      // Upload with proper content type
+      final uploadPath = await _supabase.storage
+          .from('avatars')
+          .upload(
+            path,
+            file,
+            fileOptions: FileOptions(contentType: contentType, upsert: false),
+          );
+
+      // Get public URL with cache-busting parameter
+      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(path);
+      final urlWithCacheBust = '$publicUrl?t=$timestamp';
+
+      debugPrint(
+        '_uploadAvatarIfNeeded: Upload successful, publicUrl = $urlWithCacheBust',
+      );
+
+      avatarUrl = urlWithCacheBust;
       _original['avatar_url'] = avatarUrl ?? '';
       avatarPath = null; // Clear the path after upload
       return avatarUrl;
+    } on StorageException catch (e) {
+      debugPrint('_uploadAvatarIfNeeded: StorageException - ${e.message}');
+      Get.snackbar(
+        'Upload Failed',
+        'Storage error: ${e.message}. Please check if avatars bucket exists and has proper permissions.',
+        duration: const Duration(seconds: 5),
+      );
+      return avatarUrl;
     } catch (e) {
       debugPrint('_uploadAvatarIfNeeded: Error - $e');
+      Get.snackbar(
+        'Upload Failed',
+        'Failed to upload avatar: ${e.toString()}',
+        duration: const Duration(seconds: 4),
+      );
       return avatarUrl;
     }
   }

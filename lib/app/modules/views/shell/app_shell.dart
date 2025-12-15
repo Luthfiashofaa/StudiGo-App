@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/shell/shell_controller.dart';
 import '../../controllers/home/home_controller.dart';
+import '../../controllers/profile/profile_controller.dart';
 import '../../views/home/home_view.dart';
 import '../../views/schedule/schedule_view.dart';
 import '../../views/schedule/add_schedule_view.dart';
@@ -77,6 +78,10 @@ class _AppShellState extends State<AppShell> {
     // Ensure HomeController is available for HomeView
     if (!Get.isRegistered<HomeController>()) {
       Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
+    }
+    // Ensure ProfileController is available for ProfileView
+    if (!Get.isRegistered<ProfileController>()) {
+      Get.lazyPut<ProfileController>(() => ProfileController(), fenix: true);
     }
   }
 
