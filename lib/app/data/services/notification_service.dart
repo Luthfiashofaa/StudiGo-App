@@ -25,6 +25,14 @@ class NotificationService {
     try {
       // Initialize timezone
       tzdata.initializeTimeZones();
+      // Set default to Asia/Jakarta (WIB/UTC+7)
+      // User can modify this to their timezone if needed
+      try {
+        tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
+        debugPrint('[NotificationService] Timezone set to: Asia/Jakarta');
+      } catch (e) {
+        debugPrint('[NotificationService] Failed to set timezone: $e');
+      }
 
       // Android initialization settings
       const AndroidInitializationSettings androidSettings =
@@ -66,6 +74,18 @@ class NotificationService {
     }
   }
 
+  /// Check if notification permissions are granted
+  Future<bool> areNotificationsEnabled() async {
+    try {
+      final status = await Permission.notification.status;
+      debugPrint('[NotificationService] Permission status: $status');
+      return status.isGranted;
+    } catch (e) {
+      debugPrint('[NotificationService] Error checking permission: $e');
+      return false;
+    }
+  }
+
   /// Schedule notification for a specific task
   ///
   /// [taskId] - Unique identifier for the task
@@ -85,8 +105,22 @@ class NotificationService {
     }
 
     try {
+      debugPrint(
+        '[NotificationService] scheduleTaskReminder called:'
+        '\n  - taskId: $taskId'
+        '\n  - taskTitle: $taskTitle'
+        '\n  - scheduledDateTime: ${scheduledDateTime.toString()}'
+        '\n  - reminderMinutesBefore: $reminderMinutesBefore'
+        '\n  - currentTime: ${DateTime.now().toString()}',
+      );
+
       final reminderDateTime = scheduledDateTime.subtract(
         Duration(minutes: reminderMinutesBefore),
+      );
+
+      debugPrint(
+        '[NotificationService] reminderDateTime: ${reminderDateTime.toString()}'
+        '\n  - isAfter(now)? ${reminderDateTime.isAfter(DateTime.now())}',
       );
 
       // Only schedule if reminder time is in the future
@@ -110,20 +144,34 @@ class NotificationService {
               importance: Importance.max,
               priority: Priority.high,
               showWhen: true,
+              playSound: true,
+              sound: RawResourceAndroidNotificationSound('reminder'),
             ),
             iOS: DarwinNotificationDetails(
               presentAlert: true,
               presentBadge: true,
               presentSound: true,
+              sound: 'reminder.wav',
             ),
           ),
-          androidScheduleMode: AndroidScheduleMode.inexact,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
 
         debugPrint(
-          'Scheduled reminder for task $taskId at ${reminderDateTime.toString()}',
+          '[NotificationService] ✓ Scheduled task reminder:'
+          '\n  - Task ID: $taskId'
+          '\n  - Title: $taskTitle'
+          '\n  - Scheduled: ${reminderDateTime.toString()}'
+          '\n  - Reminder Before: $reminderMinutesBefore min',
+        );
+      } else {
+        debugPrint(
+          '[NotificationService] ✗ Skipped scheduling task $taskId'
+          '\n  - Reminder time: ${reminderDateTime.toString()}'
+          '\n  - Current time: ${DateTime.now().toString()}'
+          '\n  - Reason: Reminder time is in the past',
         );
       }
     } catch (e) {
