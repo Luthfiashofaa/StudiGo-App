@@ -32,6 +32,63 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
   List<String> categories = ['Belajar', 'Istirahat', 'Hiburan', 'Tugas'];
 
+  void _showTopNotification(String message, Color bgColor) {
+    if (!mounted) return;
+    
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 60,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: bgColor.withOpacity(0.8),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: bgColor.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ),
+    );
+    
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (overlayEntry.mounted) {
+        overlayEntry.remove();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,8 +109,8 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
       final startRaw = sched['start_time']?.toString();
       final endRaw = sched['end_time']?.toString();
-      final start = startRaw != null ? DateTime.tryParse(startRaw) : null;
-      final end = endRaw != null ? DateTime.tryParse(endRaw) : null;
+      final start = startRaw != null ? DateTime.tryParse(startRaw)?.toLocal() : null;
+      final end = endRaw != null ? DateTime.tryParse(endRaw)?.toLocal() : null;
       if (start != null) {
         _selectedDate = DateTime(start.year, start.month, start.day);
         _startTime = TimeOfDay(hour: start.hour, minute: start.minute);
@@ -140,7 +197,13 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       if (_dateError) missing.add('Tanggal');
       if (_timeError) missing.add('Waktu mulai & selesai');
       if (_categoryError) missing.add('Kategori');
-      Get.snackbar('Validasi', 'Lengkapi field: ${missing.join(', ')}');
+      
+      if (mounted) {
+        _showTopNotification(
+          'Lengkapi field: ${missing.join(', ')}',
+          Colors.orange.shade600,
+        );
+      }
       return;
     }
 
@@ -149,7 +212,12 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     final endTotalMinutes = (_endTime!.hour * 60) + _endTime!.minute;
     if (endTotalMinutes <= startTotalMinutes) {
       setState(() => _timeError = true);
-      Get.snackbar('Validasi', 'Waktu selesai harus setelah waktu mulai');
+      if (mounted) {
+        _showTopNotification(
+          'Waktu selesai harus setelah waktu mulai',
+          Colors.red.shade600,
+        );
+      }
       return;
     }
 
@@ -189,15 +257,31 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       }
 
       if (!mounted) return;
-      Get.snackbar(
-        'Berhasil',
+      _showTopNotification(
         _editingId != null
             ? 'Jadwal berhasil diperbarui'
             : 'Jadwal berhasil disimpan',
+        Colors.green.shade600,
       );
-      Navigator.of(context).maybePop();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) Navigator.of(context).maybePop();
+      });
     } catch (e) {
-      Get.snackbar('Gagal', e.toString());
+      if (mounted) {
+        String errorMessage = 'Terjadi kesalahan saat menyimpan jadwal';
+        if (e.toString().contains('login')) {
+          errorMessage = 'Silakan login terlebih dahulu';
+        } else if (e.toString().contains('network') || e.toString().contains('timeout')) {
+          errorMessage = 'Gagal koneksi, periksa internet Anda';
+        } else {
+          errorMessage = e.toString().replaceAll('Exception: ', '').trim();
+        }
+        _showTopNotification(
+          errorMessage,
+          Colors.red.shade600,
+        );
+      }
+      debugPrint('[AddScheduleView] Save error: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -415,6 +499,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
+                        fontSize: isTablet ? 18 : 17,
                       ),
                     ),
                   ],
@@ -444,8 +529,8 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                   'Kategori',
                   style: TextStyle(
                     color: Colors.grey.shade800,
-                    fontWeight: FontWeight.w900,
-                    fontSize: isTablet ? 22 : 20,
+                    fontWeight: FontWeight.w700,
+                    fontSize: isTablet ? 20 : 19,
                   ),
                 ),
               ),
@@ -555,16 +640,14 @@ class _AddScheduleViewState extends State<AddScheduleView> {
           ),
         ),
         SizedBox(height: isTablet ? 12 : 8),
-        _card(
-          child: Wrap(
-            spacing: isTablet ? 24 : 16,
-            runSpacing: isTablet ? 12 : 8,
-            children: [
-              _priorityChip('Tinggi', isTablet),
-              _priorityChip('Sedang', isTablet),
-              _priorityChip('Rendah', isTablet),
-            ],
-          ),
+        Row(
+          children: [
+            Expanded(child: _priorityChip('Rendah', isTablet)),
+            SizedBox(width: isTablet ? 14 : 10),
+            Expanded(child: _priorityChip('Sedang', isTablet)),
+            SizedBox(width: isTablet ? 14 : 10),
+            Expanded(child: _priorityChip('Tinggi', isTablet)),
+          ],
         ),
         SizedBox(height: isTablet ? 30 : 24),
         Center(
@@ -705,53 +788,73 @@ class _AddScheduleViewState extends State<AddScheduleView> {
   Widget _priorityChip(String label, [bool isTablet = false]) {
     final bool selected = _priority == label;
 
-    // map label to color when selected
-    Color selectedColor;
-    Color selectedTextColor = Colors.white;
+    Color bgColor;
+    Color borderColor;
+    Color textColor;
+    
     switch (label) {
       case 'Tinggi':
-        selectedColor = Colors.red;
+        bgColor = selected ? const Color(0xFFEF5350) : const Color(0xFFFFCDD2);
+        borderColor = const Color(0xFFEF5350);
+        textColor = selected ? Colors.white : const Color(0xFFD32F2F);
         break;
       case 'Sedang':
-        selectedColor = Colors.amber; // yellow-ish
-        // use dark text on yellow for readability
-        selectedTextColor = Colors.black87;
+        bgColor = selected ? const Color(0xFFFFA726) : const Color(0xFFFFE0B2);
+        borderColor = const Color(0xFFFFA726);
+        textColor = selected ? Colors.white : const Color(0xFFF57C00);
         break;
       case 'Rendah':
-        selectedColor = Colors.green;
+        bgColor = selected ? const Color(0xFF66BB6A) : const Color(0xFFC8E6C9);
+        borderColor = const Color(0xFF66BB6A);
+        textColor = selected ? Colors.white : const Color(0xFF2E7D32);
         break;
       default:
-        selectedColor = const Color(0xFF2D7DF6);
+        bgColor = Colors.grey.shade300;
+        borderColor = Colors.grey;
+        textColor = Colors.grey.shade800;
     }
 
     return GestureDetector(
       onTap: () => setState(() => _priority = label),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(
-          vertical: isTablet ? 10 : 8,
-          horizontal: isTablet ? 20 : 18,
+          vertical: isTablet ? 16 : 14,
+          horizontal: isTablet ? 12 : 10,
         ),
         decoration: BoxDecoration(
-          color: selected ? selectedColor : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: borderColor,
+            width: selected ? 2.5 : 1.5,
+          ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: selectedColor.withOpacity(0.25),
-                    blurRadius: 8,
+                    color: borderColor.withOpacity(0.3),
+                    blurRadius: 12,
                     offset: const Offset(0, 4),
+                    spreadRadius: 2,
                   ),
                 ]
-              : null,
-          border: Border.all(
-            color: selected ? Colors.transparent : Colors.grey.shade300,
-          ),
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? selectedTextColor : Colors.grey.shade800,
-            fontWeight: FontWeight.w700,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+              fontSize: isTablet ? 15 : 14,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
       ),
