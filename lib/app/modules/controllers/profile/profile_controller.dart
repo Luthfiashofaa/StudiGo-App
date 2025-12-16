@@ -221,6 +221,41 @@ class ProfileController extends GetxController {
     }
   }
 
+  /// Debug: Show test notification immediately
+  Future<void> debugTestNotification() async {
+    try {
+      // Check permission status
+      final hasPermission = await _notificationService
+          .areNotificationsEnabled();
+      debugPrint(
+        '[ProfileController] Notification permission granted: $hasPermission',
+      );
+
+      if (!hasPermission) {
+        debugPrint('[ProfileController] Requesting notification permission...');
+        final granted = await _notificationService.requestPermissions();
+        if (!granted) {
+          debugPrint('[ProfileController] Permission denied!');
+          return;
+        }
+      }
+
+      await _notificationService.showTestNotification();
+      debugPrint('[ProfileController] Test notification sent');
+
+      // Check pending notifications count
+      final pending = await _notificationService.getPendingNotifications();
+      debugPrint(
+        '[ProfileController] Pending notifications: ${pending.length}',
+      );
+      for (final notif in pending) {
+        debugPrint('  - ID: ${notif.id}, Title: ${notif.title}');
+      }
+    } catch (e) {
+      debugPrint('[ProfileController] Error sending test notification: $e');
+    }
+  }
+
   String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')} - ${d.month.toString().padLeft(2, '0')} - ${d.year}';
 
