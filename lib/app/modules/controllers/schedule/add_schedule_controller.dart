@@ -82,13 +82,27 @@ class AddScheduleController extends GetxController {
       debugPrint('Adding new schedule to local cache');
       scheduleCtrl.schedules.add(normalized);
     }
-    // Ensure sorted by start_time ascending for consistency with fetch
-    scheduleCtrl.schedules.sort((a, b) {
+
+    // Update full list (calendar dots, future fetch reuse)
+    final idxAll = scheduleCtrl.allSchedules.indexWhere(
+      (e) => e['id'] == normalized['id'],
+    );
+    if (idxAll >= 0) {
+      scheduleCtrl.allSchedules[idxAll] = normalized;
+    } else {
+      scheduleCtrl.allSchedules.add(normalized);
+    }
+
+    int _cmp(Map<String, dynamic> a, Map<String, dynamic> b) {
       final sa = a['start_time']?.toString();
       final sb = b['start_time']?.toString();
       return (sa ?? '').compareTo(sb ?? '');
-    });
+    }
+
+    scheduleCtrl.schedules.sort(_cmp);
+    scheduleCtrl.allSchedules.sort(_cmp);
     scheduleCtrl.schedules.refresh();
+    scheduleCtrl.allSchedules.refresh();
     debugPrint('Total schedules in cache: ${scheduleCtrl.schedules.length}');
 
     // Trigger home update - ensure it's always called

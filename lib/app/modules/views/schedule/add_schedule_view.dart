@@ -32,6 +32,63 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
   List<String> categories = ['Belajar', 'Istirahat', 'Hiburan', 'Tugas'];
 
+  void _showTopNotification(String message, Color bgColor) {
+    if (!mounted) return;
+    
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 60,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: bgColor.withOpacity(0.8),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: bgColor.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ),
+    );
+    
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (overlayEntry.mounted) {
+        overlayEntry.remove();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,8 +109,8 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
       final startRaw = sched['start_time']?.toString();
       final endRaw = sched['end_time']?.toString();
-      final start = startRaw != null ? DateTime.tryParse(startRaw) : null;
-      final end = endRaw != null ? DateTime.tryParse(endRaw) : null;
+      final start = startRaw != null ? DateTime.tryParse(startRaw)?.toLocal() : null;
+      final end = endRaw != null ? DateTime.tryParse(endRaw)?.toLocal() : null;
       if (start != null) {
         _selectedDate = DateTime(start.year, start.month, start.day);
         _startTime = TimeOfDay(hour: start.hour, minute: start.minute);
@@ -140,7 +197,13 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       if (_dateError) missing.add('Tanggal');
       if (_timeError) missing.add('Waktu mulai & selesai');
       if (_categoryError) missing.add('Kategori');
-      Get.snackbar('Validasi', 'Lengkapi field: ${missing.join(', ')}');
+      
+      if (mounted) {
+        _showTopNotification(
+          'Lengkapi field: ${missing.join(', ')}',
+          Colors.orange.shade600,
+        );
+      }
       return;
     }
 
@@ -149,7 +212,12 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     final endTotalMinutes = (_endTime!.hour * 60) + _endTime!.minute;
     if (endTotalMinutes <= startTotalMinutes) {
       setState(() => _timeError = true);
-      Get.snackbar('Validasi', 'Waktu selesai harus setelah waktu mulai');
+      if (mounted) {
+        _showTopNotification(
+          'Waktu selesai harus setelah waktu mulai',
+          Colors.red.shade600,
+        );
+      }
       return;
     }
 
@@ -189,15 +257,31 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       }
 
       if (!mounted) return;
-      Get.snackbar(
-        'Berhasil',
+      _showTopNotification(
         _editingId != null
             ? 'Jadwal berhasil diperbarui'
             : 'Jadwal berhasil disimpan',
+        Colors.green.shade600,
       );
-      Navigator.of(context).maybePop();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) Navigator.of(context).maybePop();
+      });
     } catch (e) {
-      Get.snackbar('Gagal', e.toString());
+      if (mounted) {
+        String errorMessage = 'Terjadi kesalahan saat menyimpan jadwal';
+        if (e.toString().contains('login')) {
+          errorMessage = 'Silakan login terlebih dahulu';
+        } else if (e.toString().contains('network') || e.toString().contains('timeout')) {
+          errorMessage = 'Gagal koneksi, periksa internet Anda';
+        } else {
+          errorMessage = e.toString().replaceAll('Exception: ', '').trim();
+        }
+        _showTopNotification(
+          errorMessage,
+          Colors.red.shade600,
+        );
+      }
+      debugPrint('[AddScheduleView] Save error: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -205,376 +289,402 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          _editingId != null ? 'Edit Task' : 'Tambah Task',
-          style: const TextStyle(
-            color: Colors.black87,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isTablet = constraints.maxWidth >= 600;
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black87),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+            title: Text(
+              _editingId != null ? 'Edit Task' : 'Tambah Task',
+              style: const TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                isTablet ? 32 : 20,
+                isTablet ? 24 : 18,
+                isTablet ? 32 : 20,
+                isTablet ? 28 : 24,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: _buildContent(isTablet),
+                ),
+              ),
+            ),
+          ),
+          bottomNavigationBar: _buildBottomNavBar(),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(bool isTablet) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Nama Jadwal',
+          style: TextStyle(
             fontWeight: FontWeight.w700,
+            fontSize: isTablet ? 20 : 18,
           ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Nama Jadwal',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        SizedBox(height: isTablet ? 12 : 8),
+        _card(
+          isError: _nameError,
+          child: TextField(
+            controller: _nameCtrl,
+            decoration: InputDecoration(
+              hintText: 'Contoh : Sesi Belajar Fisika',
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                vertical: isTablet ? 10 : 5,
+                horizontal: isTablet ? 12 : 8,
               ),
-              const SizedBox(height: 8),
-              _card(
-                isError: _nameError,
-                child: TextField(
-                  controller: _nameCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Contoh : Sesi Belajar Fisika',
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 5,
-                      horizontal: 8,
-                    ),
-                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              const Text(
-                'Tanggal',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: GestureDetector(
-                      onTap: _pickDate,
-                      child: _card(
-                        isError: _dateError,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _selectedDate == null
-                                    ? 'Date'
-                                    : '${_selectedDate!.day.toString().padLeft(2, '0')} ${_selectedDate!.month}/${_selectedDate!.year}',
-                                style: TextStyle(
-                                  color: _selectedDate == null
-                                      ? Colors.grey.shade400
-                                      : Colors.black87,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.schedule, color: Colors.grey),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      onTap: () async {
-                        final pickedStart = await _pickTime(_startTime);
-                        if (pickedStart == null) return;
-                        final pickedEnd = await _pickTime(
-                          _endTime ?? pickedStart,
-                        );
-                        setState(() {
-                          _startTime = pickedStart;
-                          if (pickedEnd != null) _endTime = pickedEnd;
-                        });
-                      },
-                      child: _card(
-                        isError: _timeError,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _formatTimeRange(),
-                                style: TextStyle(color: Colors.grey.shade700),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.access_time, color: Colors.grey),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-              const Text(
-                'Deskripsi',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              _card(
-                isError: _descError,
-                child: TextField(
-                  controller: _descCtrl,
-                  minLines: 5,
-                  maxLines: 5,
-                  decoration: InputDecoration(
-                    hintText:
-                        'Contoh : Kerjakan latihan soal tentang turunan dan integral. Fokus pada penerapan rumus dan grafik fungsi.',
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.all(12),
-                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: () => setState(() => _repeatDaily = !_repeatDaily),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2D7DF6), // blue box background
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+            ),
+          ),
+        ),
+        SizedBox(height: isTablet ? 22 : 16),
+        Text(
+          'Tanggal',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: isTablet ? 20 : 18,
+          ),
+        ),
+        SizedBox(height: isTablet ? 12 : 8),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: GestureDetector(
+                onTap: _pickDate,
+                child: _card(
+                  isError: _dateError,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const SizedBox(width: 6),
-                          Text(
-                            'Ulangi Setiap Hari',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
+                      Expanded(
+                        child: Text(
+                          _selectedDate == null
+                              ? 'Date'
+                              : '${_selectedDate!.day.toString().padLeft(2, '0')} ${_selectedDate!.month}/${_selectedDate!.year}',
+                          style: TextStyle(
+                            color: _selectedDate == null
+                                ? Colors.grey.shade400
+                                : Colors.black87,
+                            fontSize: isTablet ? 16 : 14,
                           ),
-                        ],
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      Switch(
-                        value: _repeatDaily,
-                        // when ON, thumb and track use green
-                        activeThumbColor: Colors.white,
-                        activeTrackColor: Color(0xFFB8E6FE),
-                        // when OFF, use light thumb/track for contrast on blue box
-                        inactiveThumbColor: Colors.white,
-                        inactiveTrackColor: Color(0xFFD9D9D9),
-                        onChanged: (v) => setState(() => _repeatDaily = v),
+                      SizedBox(width: isTablet ? 12 : 8),
+                      Icon(
+                        Icons.schedule,
+                        color: Colors.grey,
+                        size: isTablet ? 22 : 20,
                       ),
                     ],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 20),
-              _card(
-                child: Row(
-                  children: [
-                    // left small box containing the field title 'Kategori'
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-
-                      child: Text(
-                        'Kategori',
-                        style: TextStyle(
-                          color: Colors.grey.shade800,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 20,
+            ),
+            SizedBox(width: isTablet ? 16 : 12),
+            Expanded(
+              flex: 2,
+              child: GestureDetector(
+                onTap: () async {
+                  final pickedStart = await _pickTime(_startTime);
+                  if (pickedStart == null) return;
+                  final pickedEnd = await _pickTime(_endTime ?? pickedStart);
+                  setState(() {
+                    _startTime = pickedStart;
+                    if (pickedEnd != null) _endTime = pickedEnd;
+                  });
+                },
+                child: _card(
+                  isError: _timeError,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _formatTimeRange(),
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: isTablet ? 16 : 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      SizedBox(width: isTablet ? 12 : 8),
+                      Icon(
+                        Icons.access_time,
+                        color: Colors.grey,
+                        size: isTablet ? 22 : 20,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: isTablet ? 22 : 16),
+        Text(
+          'Deskripsi',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: isTablet ? 20 : 18,
+          ),
+        ),
+        SizedBox(height: isTablet ? 12 : 8),
+        _card(
+          isError: _descError,
+          child: TextField(
+            controller: _descCtrl,
+            minLines: isTablet ? 6 : 5,
+            maxLines: isTablet ? 6 : 5,
+            decoration: InputDecoration(
+              hintText:
+                  'Contoh : Kerjakan latihan soal tentang turunan dan integral. Fokus pada penerapan rumus dan grafik fungsi.',
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.all(isTablet ? 16 : 12),
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+            ),
+          ),
+        ),
+        SizedBox(height: isTablet ? 22 : 16),
+        GestureDetector(
+          onTap: () => setState(() => _repeatDaily = !_repeatDaily),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              vertical: isTablet ? 12 : 8,
+              horizontal: isTablet ? 16 : 12,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2D7DF6),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const SizedBox(width: 6),
+                    Text(
+                      'Ulangi Setiap Hari',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        fontSize: isTablet ? 18 : 17,
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    // push dropdown to the right
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: categories.contains(_selectedCategory)
-                                ? _selectedCategory
-                                : null,
-                            hint: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 6,
-                                horizontal: 15,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _categoryError
-                                      ? Colors.red.shade300
-                                      : Colors.grey.shade300,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Text(
-                                    'Pilih',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Icon(
-                                    Icons.arrow_drop_down,
-                                    color: Colors.grey,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            isExpanded: false,
-                            // hide the default right-side caret; icon will be shown inside the pill
-                            icon: const SizedBox.shrink(),
-                            selectedItemBuilder: (context) {
-                              return categories.map((c) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 6,
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: _categoryError
-                                          ? Colors.red.shade300
-                                          : Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        c,
-                                        style: TextStyle(
-                                          color: Colors.grey.shade800,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      const Icon(
-                                        Icons.arrow_drop_down,
-                                        color: Colors.grey,
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList();
-                            },
-                            items: categories
-                                .map(
-                                  (c) => DropdownMenuItem(
-                                    value: c,
-                                    child: Text(c),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) => setState(() {
-                              _selectedCategory = v;
-                              _categoryError = false;
-                            }),
+                  ],
+                ),
+                Switch(
+                  value: _repeatDaily,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: Color(0xFFB8E6FE),
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: Color(0xFFD9D9D9),
+                  onChanged: (v) => setState(() => _repeatDaily = v),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: isTablet ? 28 : 20),
+        _card(
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(
+                  vertical: isTablet ? 12 : 8,
+                  horizontal: isTablet ? 16 : 12,
+                ),
+                child: Text(
+                  'Kategori',
+                  style: TextStyle(
+                    color: Colors.grey.shade800,
+                    fontWeight: FontWeight.w700,
+                    fontSize: isTablet ? 20 : 19,
+                  ),
+                ),
+              ),
+              SizedBox(width: isTablet ? 16 : 12),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: categories.contains(_selectedCategory)
+                          ? _selectedCategory
+                          : null,
+                      hint: Container(
+                        padding: EdgeInsets.symmetric(
+                          vertical: isTablet ? 8 : 6,
+                          horizontal: isTablet ? 18 : 15,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _categoryError
+                                ? Colors.red.shade300
+                                : Colors.grey.shade300,
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              const Text(
-                'Prioritas',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              _card(
-                child: Wrap(
-                  spacing: 43,
-                  runSpacing: 8,
-                  children: [
-                    _priorityChip('Tinggi'),
-                    _priorityChip('Sedang'),
-                    _priorityChip('Rendah'),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-              Center(
-                child: SizedBox(
-                  width: 250,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _saveSchedule,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D7DF6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Text(
+                              'Pilih',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
                               ),
+                            ),
+                            SizedBox(width: 10),
+                            Icon(
+                              Icons.arrow_drop_down,
+                              color: Colors.grey,
+                            ),
+                          ],
+                        ),
+                      ),
+                      isExpanded: false,
+                      icon: const SizedBox.shrink(),
+                      selectedItemBuilder: (context) {
+                        return categories.map((c) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 6,
+                              horizontal: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _categoryError
+                                    ? Colors.red.shade300
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  c,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade800,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList();
+                      },
+                      items: categories
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c,
+                              child: Text(c),
                             ),
                           )
-                        : Text(
-                            _editingId != null
-                                ? 'Perbarui Target'
-                                : 'Simpan Target',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
+                          .toList(),
+                      onChanged: (v) => setState(() {
+                        _selectedCategory = v;
+                        _categoryError = false;
+                      }),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: _buildBottomNavBar(),
+        SizedBox(height: isTablet ? 22 : 16),
+        Text(
+          'Prioritas',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: isTablet ? 20 : 18,
+          ),
+        ),
+        SizedBox(height: isTablet ? 12 : 8),
+        Row(
+          children: [
+            Expanded(child: _priorityChip('Rendah', isTablet)),
+            SizedBox(width: isTablet ? 14 : 10),
+            Expanded(child: _priorityChip('Sedang', isTablet)),
+            SizedBox(width: isTablet ? 14 : 10),
+            Expanded(child: _priorityChip('Tinggi', isTablet)),
+          ],
+        ),
+        SizedBox(height: isTablet ? 30 : 24),
+        Center(
+          child: SizedBox(
+            width: isTablet ? 320 : 250,
+            height: isTablet ? 58 : 54,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _saveSchedule,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2D7DF6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(isTablet ? 18 : 16),
+                ),
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.white,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      _editingId != null ? 'Perbarui Target' : 'Simpan Target',
+                      style: TextStyle(
+                        fontSize: isTablet ? 17 : 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -675,53 +785,76 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     Get.back();
   }
 
-  Widget _priorityChip(String label) {
+  Widget _priorityChip(String label, [bool isTablet = false]) {
     final bool selected = _priority == label;
 
-    // map label to color when selected
-    Color selectedColor;
-    Color selectedTextColor = Colors.white;
+    Color bgColor;
+    Color borderColor;
+    Color textColor;
+    
     switch (label) {
       case 'Tinggi':
-        selectedColor = Colors.red;
+        bgColor = selected ? const Color(0xFFEF5350) : const Color(0xFFFFCDD2);
+        borderColor = const Color(0xFFEF5350);
+        textColor = selected ? Colors.white : const Color(0xFFD32F2F);
         break;
       case 'Sedang':
-        selectedColor = Colors.amber; // yellow-ish
-        // use dark text on yellow for readability
-        selectedTextColor = Colors.black87;
+        bgColor = selected ? const Color(0xFFFFA726) : const Color(0xFFFFE0B2);
+        borderColor = const Color(0xFFFFA726);
+        textColor = selected ? Colors.white : const Color(0xFFF57C00);
         break;
       case 'Rendah':
-        selectedColor = Colors.green;
+        bgColor = selected ? const Color(0xFF66BB6A) : const Color(0xFFC8E6C9);
+        borderColor = const Color(0xFF66BB6A);
+        textColor = selected ? Colors.white : const Color(0xFF2E7D32);
         break;
       default:
-        selectedColor = const Color(0xFF2D7DF6);
+        bgColor = Colors.grey.shade300;
+        borderColor = Colors.grey;
+        textColor = Colors.grey.shade800;
     }
 
     return GestureDetector(
       onTap: () => setState(() => _priority = label),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(
+          vertical: isTablet ? 16 : 14,
+          horizontal: isTablet ? 12 : 10,
+        ),
         decoration: BoxDecoration(
-          color: selected ? selectedColor : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: borderColor,
+            width: selected ? 2.5 : 1.5,
+          ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: selectedColor.withOpacity(0.25),
-                    blurRadius: 8,
+                    color: borderColor.withOpacity(0.3),
+                    blurRadius: 12,
                     offset: const Offset(0, 4),
+                    spreadRadius: 2,
                   ),
                 ]
-              : null,
-          border: Border.all(
-            color: selected ? Colors.transparent : Colors.grey.shade300,
-          ),
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? selectedTextColor : Colors.grey.shade800,
-            fontWeight: FontWeight.w700,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+              fontSize: isTablet ? 15 : 14,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
       ),

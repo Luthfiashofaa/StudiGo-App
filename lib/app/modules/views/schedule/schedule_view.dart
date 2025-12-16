@@ -16,12 +16,217 @@ class ScheduleView extends StatefulWidget {
 class _ScheduleViewState extends State<ScheduleView> {
   late final ScheduleController _controller;
   DateTime _selectedDate = DateTime.now();
+  late final ScrollController _dateScrollController;
 
   @override
   void initState() {
     super.initState();
+    _dateScrollController = ScrollController();
     _controller = Get.put(ScheduleController());
     _controller.fetchSchedules(date: _selectedDate);
+    
+    // Scroll to today's date after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToToday();
+    });
+  }
+
+  void _scrollToToday() {
+    final now = DateTime.now();
+    
+    if (now.year == _selectedDate.year && now.month == _selectedDate.month) {
+      // Today is in the current month
+      final dayIndex = now.day - 1;
+      final cardSize = MediaQuery.of(context).size.width >= 600 ? 70.0 : 64.0;
+      final spacing = 10.0;
+      final offset = dayIndex * (cardSize + spacing);
+      
+      _dateScrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  int _getDaysInMonth(DateTime date) {
+    final firstOfMonth = DateTime(date.year, date.month, 1);
+    final firstOfNextMonth = DateTime(
+      date.month == 12 ? date.year + 1 : date.year,
+      date.month == 12 ? 1 : date.month + 1,
+      1,
+    );
+    return firstOfNextMonth.difference(firstOfMonth).inDays;
+  }
+
+  @override
+  void dispose() {
+    _dateScrollController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildScheduleCard(Map<String, dynamic> t, bool isTablet) {
+    final Color border = _priorityColor(t['priority']?.toString()).withOpacity(0.9);
+    final String time = _formatRange(t);
+    final String title = t['title']?.toString() ?? '';
+    final String desc = t['description']?.toString() ?? '-';
+    final String priority = t['priority']?.toString() ?? '';
+    final String category = t['category']?.toString() ?? 'Kategori';
+
+    return GestureDetector(
+      onTap: () async {
+        Get.put(AddScheduleController());
+        final result = await Get.to<int>(AddScheduleView(scheduleData: t));
+        if (result != null) {
+          // handled in shell
+        } else {
+          await _refreshSchedules();
+        }
+        Get.delete<AddScheduleController>();
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
+          border: Border.all(
+            color: border.withOpacity(0.3),
+            width: isTablet ? 2.5 : 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: isTablet ? 12 : 10,
+              offset: Offset(0, isTablet ? 8 : 6),
+            ),
+          ],
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: isTablet ? 8 : 6,
+                decoration: BoxDecoration(
+                  color: border.withOpacity(0.95),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(isTablet ? 16 : 12),
+                    bottomLeft: Radius.circular(isTablet ? 16 : 12),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 18 : 14,
+                    vertical: isTablet ? 16 : 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.view_in_ar,
+                                      size: isTablet ? 18 : 16,
+                                      color: border.withOpacity(0.95),
+                                    ),
+                                    SizedBox(width: isTablet ? 10 : 8),
+                                    Text(
+                                      time,
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: isTablet ? 15 : 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: isTablet ? 8 : 6),
+                                Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 22 : 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: isTablet ? 10 : 8),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.redAccent,
+                                  size: isTablet ? 26 : 24,
+                                ),
+                                onPressed: () => _confirmDelete(t['id'].toString()),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: isTablet ? 10 : 8),
+                      Text(
+                        desc,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: isTablet ? 16 : 14,
+                        ),
+                      ),
+                      SizedBox(height: isTablet ? 14 : 12),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.import_contacts,
+                            size: isTablet ? 18 : 16,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(width: isTablet ? 8 : 6),
+                          Text(
+                            category,
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: isTablet ? 15 : 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          _PriorityBadge(
+                            color: _priorityColor(priority),
+                            size: isTablet ? 22 : 18,
+                          ),
+                          SizedBox(width: isTablet ? 10 : 8),
+                          Text(
+                            priority.isEmpty ? 'Prioritas' : 'Prioritas $priority',
+                            style: TextStyle(
+                              color: _priorityColor(priority),
+                              fontWeight: FontWeight.w700,
+                              fontSize: isTablet ? 15 : 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _refreshSchedules() async {
@@ -29,8 +234,8 @@ class _ScheduleViewState extends State<ScheduleView> {
   }
 
   String _formatRange(Map<String, dynamic> item) {
-    final start = DateTime.tryParse(item['start_time']?.toString() ?? '');
-    final end = DateTime.tryParse(item['end_time']?.toString() ?? '');
+    final start = DateTime.tryParse(item['start_time']?.toString() ?? '')?.toLocal();
+    final end = DateTime.tryParse(item['end_time']?.toString() ?? '')?.toLocal();
     if (start == null || end == null) return '';
     String fmt(DateTime dt) =>
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -48,6 +253,58 @@ class _ScheduleViewState extends State<ScheduleView> {
       default:
         return const Color(0xFF2B7FFF);
     }
+  }
+
+  Color? _priorityDotColor(String? p) {
+    switch (p) {
+      case 'Tinggi':
+        return Colors.redAccent;
+      case 'Sedang':
+        return Colors.amber;
+      case 'Rendah':
+        return Colors.green;
+      default:
+        return null;
+    }
+  }
+
+  List<Color> _colorsForDate(DateTime date) {
+    final set = <Color>{};
+    for (final item in _controller.allSchedules) {
+      final bool repeats = item['repeat_daily'] == true;
+      final rawDate = item['date']?.toString();
+      final rawStart = item['start_time']?.toString();
+
+      DateTime? dateValue;
+      if (rawDate != null) {
+        try {
+          dateValue = DateTime.parse(rawDate.replaceAll(' ', 'T')).toLocal();
+        } catch (_) {
+          dateValue = DateTime.tryParse(rawDate)?.toLocal();
+        }
+      }
+      if (dateValue == null && rawStart != null) {
+        try {
+          dateValue = DateTime.parse(rawStart.replaceAll(' ', 'T')).toLocal();
+        } catch (_) {
+          dateValue = DateTime.tryParse(rawStart)?.toLocal();
+        }
+      }
+      if (dateValue == null) continue;
+
+      final itemDate = DateTime(dateValue.year, dateValue.month, dateValue.day);
+      final bool matches = repeats
+          ? !date.isBefore(itemDate)
+          : (itemDate.year == date.year &&
+              itemDate.month == date.month &&
+              itemDate.day == date.day);
+
+      if (matches) {
+        final c = _priorityDotColor(item['priority']?.toString());
+        if (c != null) set.add(c);
+      }
+    }
+    return set.toList();
   }
 
   Future<void> _confirmDelete(String id) async {
@@ -76,6 +333,15 @@ class _ScheduleViewState extends State<ScheduleView> {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isTablet = constraints.maxWidth >= 600;
+        return _buildContent(context, isTablet);
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, bool isTablet) {
     // show a full month (all days of the selected month) in the top horizontal list
     final firstOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
     // compute number of days in the selected month
@@ -137,9 +403,9 @@ class _ScheduleViewState extends State<ScheduleView> {
         backgroundColor: Colors.white,
         elevation: 0,
         // slightly reduce toolbar height so calendar content moves up
-        toolbarHeight: 90,
+        toolbarHeight: isTablet ? 110 : 90,
         // give title a left inset to match body padding
-        titleSpacing: 16,
+        titleSpacing: isTablet ? 24 : 16,
         leadingWidth: 0,
         leading: const SizedBox.shrink(),
         title: Column(
@@ -147,14 +413,17 @@ class _ScheduleViewState extends State<ScheduleView> {
           children: [
             Text(
               weekdayName,
-              style: const TextStyle(color: Colors.grey, fontSize: 16),
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: isTablet ? 18 : 16,
+              ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: isTablet ? 6 : 4),
             Text(
               dateString,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.black87,
-                fontSize: 20,
+                fontSize: isTablet ? 24 : 20,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -162,7 +431,7 @@ class _ScheduleViewState extends State<ScheduleView> {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12.0),
+            padding: EdgeInsets.only(right: isTablet ? 20.0 : 12.0),
             child: ElevatedButton.icon(
               onPressed: () async {
                 // Register controller before opening view
@@ -180,19 +449,26 @@ class _ScheduleViewState extends State<ScheduleView> {
                 // Clean up controller after closing view
                 Get.delete<AddScheduleController>();
               },
-              icon: const Icon(Icons.add, size: 18, color: Colors.white),
-              label: const Text(
+              icon: Icon(
+                Icons.add,
+                size: isTablet ? 20 : 18,
+                color: Colors.white,
+              ),
+              label: Text(
                 'Add Task',
-                style: TextStyle(fontSize: 16, color: Colors.white),
+                style: TextStyle(
+                  fontSize: isTablet ? 18 : 16,
+                  color: Colors.white,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2D7DF6),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 18 : 14,
+                  vertical: isTablet ? 12 : 10,
                 ),
                 elevation: 0,
               ),
@@ -201,391 +477,253 @@ class _ScheduleViewState extends State<ScheduleView> {
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                height: 86,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: days.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (context, idx) {
-                    if (idx == days.length) {
-                      return GestureDetector(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _selectedDate,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              _selectedDate = picked;
-                            });
-                            await _refreshSchedules();
-                          }
-                        },
-                        child: SizedBox(
-                          width: 64,
-                          height: 64,
-                          // raise the whole circular button a bit so it sits slightly higher
-                          child: Align(
-                            alignment: const Alignment(0, -0.18),
-                            child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              // raise the chevron inside the circle slightly more for visual balance
-                              child: Align(
-                                alignment: const Alignment(0, -0.28),
-                                child: const Icon(
-                                  Icons.chevron_right,
-                                  color: Color.fromARGB(255, 158, 158, 158),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final d = days[idx] as Map<String, dynamic>;
-                    final day = d['day'] as String;
-                    final dateObj = d['date'] as DateTime;
-                    final isSelected =
-                        dateObj.year == _selectedDate.year &&
-                        dateObj.month == _selectedDate.month &&
-                        dateObj.day == _selectedDate.day;
-
-                    // month short name
-                    const monthShort = [
-                      'Jan',
-                      'Feb',
-                      'Mar',
-                      'Apr',
-                      'May',
-                      'Jun',
-                      'Jul',
-                      'Aug',
-                      'Sep',
-                      'Oct',
-                      'Nov',
-                      'Dec',
-                    ];
-                    final monthLabel = monthShort[dateObj.month - 1];
-
-                    return GestureDetector(
-                      onTap: () async {
-                        setState(() {
-                          _selectedDate = dateObj;
-                        });
-                        await _refreshSchedules();
-                      },
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFF9BBEFF)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? const Color(0xFF0059FF)
-                                    : const Color(0xFF9BBEFF),
-                              ),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  d['label'] as String,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.black
-                                        : const Color(0xFF797979),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  day,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.black
-                                        : const Color(0xFF797979),
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              SizedBox(width: 3),
-                              CircleAvatar(
-                                radius: 3,
-                                backgroundColor: Color.fromARGB(255, 255, 0, 0),
-                              ),
-                              SizedBox(width: 3),
-                              CircleAvatar(
-                                radius: 3,
-                                backgroundColor: Color.fromARGB(
-                                  255,
-                                  255,
-                                  238,
-                                  0,
-                                ),
-                              ),
-                              SizedBox(width: 3),
-                              CircleAvatar(
-                                radius: 3,
-                                backgroundColor: Color.fromARGB(
-                                  255,
-                                  0,
-                                  255,
-                                  13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isTablet ? 1000 : double.infinity,
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                isTablet ? 24.0 : 16.0,
+                isTablet ? 16.0 : 12.0,
+                isTablet ? 24.0 : 16.0,
+                isTablet ? 16.0 : 12.0,
               ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: Obx(() {
-                  if (_controller.isLoading.value) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (_controller.schedules.isEmpty) {
-                    return const Center(
-                      child: Text('Belum ada jadwal untuk tanggal ini.'),
-                    );
-                  }
-
-                  return RefreshIndicator(
-                    onRefresh: _refreshSchedules,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: isTablet ? 100 : 86,
                     child: ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: _controller.schedules.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 18),
-                      itemBuilder: (context, index) {
-                        final t = _controller.schedules[index];
-                        final Color border = _priorityColor(
-                          t['priority']?.toString(),
-                        ).withOpacity(0.9);
-                        final String time = _formatRange(t);
-                        final String title = t['title']?.toString() ?? '';
-                        final String desc = t['description']?.toString() ?? '-';
-                        final String priority = t['priority']?.toString() ?? '';
-                        final String category =
-                            t['category']?.toString() ?? 'Kategori';
+                      controller: _dateScrollController,
+                      scrollDirection: Axis.horizontal,
+                      itemCount: days.length + 1,
+                      separatorBuilder: (_, __) => SizedBox(
+                        width: isTablet ? 10 : 10,
+                      ),
+                      itemBuilder: (context, idx) {
+                        if (idx == days.length) {
+                          final buttonSize = isTablet ? 70.0 : 64.0;
+                          final iconSize = isTablet ? 48.0 : 44.0;
+                          return GestureDetector(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDate,
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _selectedDate = picked;
+                                });
+                                await _refreshSchedules();
+                              }
+                            },
+                            child: SizedBox(
+                              width: buttonSize,
+                              height: buttonSize,
+                              // raise the whole circular button a bit so it sits slightly higher
+                              child: Align(
+                                alignment: const Alignment(0, -0.18),
+                                child: Container(
+                                  width: iconSize,
+                                  height: iconSize,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  // raise the chevron inside the circle slightly more for visual balance
+                                  child: Align(
+                                    alignment: const Alignment(0, -0.28),
+                                    child: Icon(
+                                      Icons.chevron_right,
+                                      color: const Color.fromARGB(
+                                        255,
+                                        158,
+                                        158,
+                                        158,
+                                      ),
+                                      size: isTablet ? 24 : 24,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final d = days[idx] as Map<String, dynamic>;
+                        final day = d['day'] as String;
+                        final dateObj = d['date'] as DateTime;
+                        final isSelected =
+                            dateObj.year == _selectedDate.year &&
+                            dateObj.month == _selectedDate.month &&
+                            dateObj.day == _selectedDate.day;
+
+                        final cardSize = isTablet ? 72.0 : 64.0;
+                        final selectedColor = isTablet
+                          ? const Color(0xFF7FB3FF)
+                          : const Color(0xFF9BBEFF);
+                        final selectedBorder = isTablet
+                          ? const Color(0xFF4C8DFF)
+                          : const Color(0xFF0059FF);
+                        final unselectedColor =
+                          isTablet ? const Color(0xFFF5F7FB) : Colors.white;
+                        final unselectedBorder = isTablet
+                          ? const Color(0xFFB7CCFF)
+                          : const Color(0xFF9BBEFF);
 
                         return GestureDetector(
                           onTap: () async {
-                            // Register controller before opening view
-                            Get.put(AddScheduleController());
-                            final result = await Get.to<int>(
-                              AddScheduleView(scheduleData: t),
-                            );
-                            // If user navigated away via navbar in AddScheduleView,
-                            // avoid popping the root to prevent a black screen.
-                            if (result != null) {
-                              // Tab change handled by ShellController inside AddScheduleView.
-                            } else {
-                              // User just saved/closed normally, refresh schedules
-                              await _refreshSchedules();
-                            }
-                            // Clean up controller after closing view
-                            Get.delete<AddScheduleController>();
+                            setState(() {
+                              _selectedDate = dateObj;
+                            });
+                            await _refreshSchedules();
                           },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: border.withOpacity(0.3),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 6),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: cardSize,
+                                height: cardSize,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? selectedColor
+                                      : unselectedColor,
+                                  borderRadius: BorderRadius.circular(
+                                    isTablet ? 14 : 12,
+                                  ),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? selectedBorder
+                                        : unselectedBorder,
+                                    width: isTablet ? 2 : 1,
+                                  ),
                                 ),
-                              ],
-                            ),
-                            child: IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    decoration: BoxDecoration(
-                                      color: border.withOpacity(0.95),
-                                      borderRadius: const BorderRadius.only(
-                                        topLeft: Radius.circular(12),
-                                        bottomLeft: Radius.circular(12),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      d['label'] as String,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.black
+                                            : const Color(0xFF797979),
+                                        fontSize: isTablet ? 14 : 12,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  ),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 12,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Row(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        Icon(
-                                                          Icons.view_in_ar,
-                                                          size: 16,
-                                                          color: border
-                                                              .withOpacity(
-                                                                0.95,
-                                                              ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 8,
-                                                        ),
-                                                        Text(
-                                                          time,
-                                                          style:
-                                                              const TextStyle(
-                                                                color:
-                                                                    Colors.grey,
-                                                                fontSize: 13,
-                                                              ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 6),
-                                                    Text(
-                                                      title,
-                                                      style: const TextStyle(
-                                                        fontSize: 18,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  IconButton(
-                                                    icon: const Icon(
-                                                      Icons.delete_outline,
-                                                      color: Colors.redAccent,
-                                                    ),
-                                                    onPressed: () =>
-                                                        _confirmDelete(
-                                                          t['id'].toString(),
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            desc,
-                                            maxLines: 3,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              color: Colors.black54,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.import_contacts,
-                                                size: 16,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                category,
-                                                style: const TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              const Spacer(),
-                                              _PriorityBadge(
-                                                color: _priorityColor(priority),
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                priority.isEmpty
-                                                    ? 'Prioritas'
-                                                    : 'Prioritas $priority',
-                                                style: TextStyle(
-                                                  color: _priorityColor(
-                                                    priority,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                    SizedBox(height: isTablet ? 6 : 4),
+                                    Text(
+                                      day,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.black
+                                            : const Color(0xFF797979),
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: isTablet ? 22 : 18,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
+                              SizedBox(height: isTablet ? 8 : 6),
+                              Obx(() {
+                                final colors = _colorsForDate(dateObj);
+                                if (colors.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(width: isTablet ? 4 : 3),
+                                    ...List.generate(colors.length, (i) {
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: isTablet ? 4 : 3,
+                                            backgroundColor: colors[i],
+                                          ),
+                                          if (i < colors.length - 1)
+                                            SizedBox(width: isTablet ? 4 : 3),
+                                        ],
+                                      );
+                                    }),
+                                    SizedBox(width: isTablet ? 4 : 3),
+                                  ],
+                                );
+                              }),
+                            ],
                           ),
                         );
                       },
                     ),
-                  );
-                }),
+                  ),
+                  SizedBox(height: isTablet ? 18 : 12),
+                  Expanded(
+                    child: Obx(() {
+                      if (_controller.isLoading.value) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+
+                      if (_controller.schedules.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'Belum ada jadwal untuk tanggal ini.',
+                            style: TextStyle(
+                              fontSize: isTablet ? 16 : 14,
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (isTablet) {
+                        return RefreshIndicator(
+                          onRefresh: _refreshSchedules,
+                          child: GridView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 18,
+                              mainAxisSpacing: 18,
+                              childAspectRatio: 1.85,
+                            ),
+                            itemCount: _controller.schedules.length,
+                            itemBuilder: (context, index) {
+                              final t = _controller.schedules[index];
+                              return _buildScheduleCard(t, isTablet);
+                            },
+                          ),
+                        );
+                      }
+
+                      return RefreshIndicator(
+                        onRefresh: _refreshSchedules,
+                        child: ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _controller.schedules.length,
+                          separatorBuilder: (_, __) => SizedBox(
+                            height: isTablet ? 22 : 18,
+                          ),
+                          itemBuilder: (context, index) {
+                            final t = _controller.schedules[index];
+                            return _buildScheduleCard(t, isTablet);
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

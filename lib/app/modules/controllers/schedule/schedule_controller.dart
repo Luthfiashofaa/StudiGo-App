@@ -19,6 +19,9 @@ class ScheduleController extends GetxController {
   final NotificationService _notificationService = NotificationService();
 
   final RxBool isLoading = false.obs;
+  // Full list of schedules for indicator dots
+  final RxList<Map<String, dynamic>> allSchedules =
+      <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> schedules = <Map<String, dynamic>>[].obs;
 
   Future<void> _handleExpiredSession(String reason) async {
@@ -51,26 +54,41 @@ class ScheduleController extends GetxController {
           );
 
       final list = List<Map<String, dynamic>>.from(data);
+      allSchedules.assignAll(list);
 
       if (date != null) {
-        final start = DateTime(date.year, date.month, date.day);
-        final end = start.add(const Duration(days: 1));
         schedules.assignAll(
           list.where((item) {
-            final raw = item['start_time']?.toString();
-            // Parse as local time to avoid UTC shift
-            DateTime? dt;
-            if (raw != null) {
-              // If stored as "YYYY-MM-DD HH:MM:SS", parse directly without UTC conversion
+            final bool repeats = item['repeat_daily'] == true;
+            // Prefer explicit date column to avoid timezone shifts
+            final rawDate = item['date']?.toString();
+            final rawStart = item['start_time']?.toString();
+
+            DateTime? dateValue;
+            if (rawDate != null) {
               try {
-                dt = DateTime.parse(raw.replaceAll(' ', 'T'));
+                dateValue = DateTime.parse(rawDate.replaceAll(' ', 'T')).toLocal();
               } catch (_) {
-                dt = DateTime.tryParse(raw);
+                dateValue = DateTime.tryParse(rawDate)?.toLocal();
               }
             }
-            if (dt == null) return false;
-            // Compare only date parts to avoid timezone issues
-            final itemDate = DateTime(dt.year, dt.month, dt.day);
+            // Fallback to start_time if date column missing
+            if (dateValue == null && rawStart != null) {
+              try {
+                dateValue = DateTime.parse(rawStart.replaceAll(' ', 'T')).toLocal();
+              } catch (_) {
+                dateValue = DateTime.tryParse(rawStart)?.toLocal();
+              }
+            }
+
+            if (dateValue == null) return false;
+            final itemDate = DateTime(dateValue.year, dateValue.month, dateValue.day);
+
+            if (repeats) {
+              // Repeat only from its start date forward (inclusive)
+              return !date.isBefore(itemDate);
+            }
+
             return itemDate.year == date.year &&
                 itemDate.month == date.month &&
                 itemDate.day == date.day;
@@ -122,6 +140,7 @@ class ScheduleController extends GetxController {
         .eq('id', id)
         .eq('user_id', user.id);
     schedules.removeWhere((item) => item['id'] == id);
+    allSchedules.removeWhere((item) => item['id'] == id);
     debugPrint('Schedule $id deleted from local cache');
 
     // Trigger home update after delete so today's tasks refresh
