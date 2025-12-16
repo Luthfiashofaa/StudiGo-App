@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../data/services/notification_service.dart';
 import '../../../data/services/supabase_service.dart';
 import '../home/home_controller.dart';
 import 'schedule_controller.dart';
@@ -11,6 +12,7 @@ class AddScheduleController extends GetxController {
     : _supabase = supabase ?? Get.find<SupabaseService>();
 
   final SupabaseService _supabase;
+  final NotificationService _notificationService = NotificationService();
 
   final RxBool isSaving = false.obs;
 
@@ -21,7 +23,9 @@ class AddScheduleController extends GetxController {
         // Parse as UTC (ISO 8601 format from database)
         final utc = DateTime.parse(raw).toUtc();
         final local = utc.toLocal();
-        debugPrint('[AddScheduleController] _parseToLocal: $raw -> $local (UTC+local)');
+        debugPrint(
+          '[AddScheduleController] _parseToLocal: $raw -> $local (UTC+local)',
+        );
         return local;
       } catch (e) {
         debugPrint('[AddScheduleController] _parseToLocal FAILED: $raw - $e');
@@ -39,12 +43,16 @@ class AddScheduleController extends GetxController {
     final dateLocal = _parseToLocal(schedule['date']);
 
     debugPrint('[AddScheduleController] Normalizing schedule:');
-    debugPrint('[AddScheduleController]   Raw start_time: ${schedule['start_time']}');
+    debugPrint(
+      '[AddScheduleController]   Raw start_time: ${schedule['start_time']}',
+    );
     debugPrint('[AddScheduleController]   Parsed start_time: $startLocal');
 
     if (startLocal != null) {
       normalized['start_time'] = startLocal.toIso8601String();
-      debugPrint('[AddScheduleController]   Normalized start_time: ${normalized['start_time']}');
+      debugPrint(
+        '[AddScheduleController]   Normalized start_time: ${normalized['start_time']}',
+      );
     }
     if (endLocal != null) {
       normalized['end_time'] = endLocal.toIso8601String();
@@ -64,8 +72,9 @@ class AddScheduleController extends GetxController {
     if (!Get.isRegistered<ScheduleController>()) return;
     final scheduleCtrl = Get.find<ScheduleController>();
     final normalized = _normalizeScheduleMap(schedule);
-    // Update filtered list (current view)
-    final idx = scheduleCtrl.schedules.indexWhere((e) => e['id'] == normalized['id']);
+    final idx = scheduleCtrl.schedules.indexWhere(
+      (e) => e['id'] == normalized['id'],
+    );
     if (idx >= 0) {
       debugPrint('Updating existing schedule at index $idx');
       scheduleCtrl.schedules[idx] = normalized;
@@ -75,7 +84,9 @@ class AddScheduleController extends GetxController {
     }
 
     // Update full list (calendar dots, future fetch reuse)
-    final idxAll = scheduleCtrl.allSchedules.indexWhere((e) => e['id'] == normalized['id']);
+    final idxAll = scheduleCtrl.allSchedules.indexWhere(
+      (e) => e['id'] == normalized['id'],
+    );
     if (idxAll >= 0) {
       scheduleCtrl.allSchedules[idxAll] = normalized;
     } else {
@@ -102,13 +113,19 @@ class AddScheduleController extends GetxController {
     try {
       debugPrint('[AddScheduleController] Triggering home update...');
       if (!Get.isRegistered<HomeController>()) {
-        debugPrint('[AddScheduleController] HomeController not registered, putting it now');
+        debugPrint(
+          '[AddScheduleController] HomeController not registered, putting it now',
+        );
         Get.put(HomeController(), permanent: false);
       }
       final homeCtrl = Get.find<HomeController>();
-      debugPrint('[AddScheduleController] Found HomeController, calling updateTodayTasksFromSchedule');
+      debugPrint(
+        '[AddScheduleController] Found HomeController, calling updateTodayTasksFromSchedule',
+      );
       homeCtrl.updateTodayTasksFromSchedule();
-      debugPrint('[AddScheduleController] updateTodayTasksFromSchedule completed');
+      debugPrint(
+        '[AddScheduleController] updateTodayTasksFromSchedule completed',
+      );
     } catch (e) {
       debugPrint('[AddScheduleController] Error triggering home update: $e');
     }
@@ -147,25 +164,25 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
-    // Keep date in local (with offset) to avoid shifting the day when converted from/to UTC.
-    // Only start/end times are stored in UTC to keep comparisons consistent.
-    String formatLocalDate(DateTime dt) => dt.toIso8601String();
-
-    // Format as UTC ISO 8601 for time fields
-    String formatUTC(DateTime dt) => dt.toUtc().toIso8601String();
+    // Store as local ISO 8601 to keep exact picked time
+    // Avoid converting to UTC so the value remains identical
+    String formatLocal(DateTime dt) {
+      return dt.toIso8601String();
+    }
 
     debugPrint('[AddScheduleController] Creating schedule:');
     debugPrint('[AddScheduleController]   Local startDateTime: $startDateTime');
-    debugPrint('[AddScheduleController]   UTC start_time: ${formatUTC(startDateTime)}');
+    debugPrint(
+      '[AddScheduleController]   Local ISO start_time: ${formatLocal(startDateTime)}',
+    );
 
     final payload = {
       'user_id': user.id,
       'title': title,
       'description': description,
-      // store date without UTC conversion to preserve selected calendar day
-      'date': formatLocalDate(DateTime(date.year, date.month, date.day)),
-      'start_time': formatUTC(startDateTime),
-      'end_time': formatUTC(endDateTime),
+      'date': formatLocal(DateTime(date.year, date.month, date.day)),
+      'start_time': formatLocal(startDateTime),
+      'end_time': formatLocal(endDateTime),
       'repeat_daily': repeatDaily,
       'priority': priority,
       'category': category,
@@ -181,6 +198,9 @@ class AddScheduleController extends GetxController {
 
       if (inserted is Map<String, dynamic>) {
         _upsertLocalSchedule(inserted);
+
+        // Schedule notification reminder if enabled
+        await _scheduleNotificationIfEnabled(inserted, startDateTime);
       } else {
         // fallback: refetch when no data returned
         if (Get.isRegistered<ScheduleController>()) {
@@ -231,24 +251,27 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
-    String formatLocalDate(DateTime dt) => dt.toIso8601String();
-    String formatUTC(DateTime dt) => dt.toUtc().toIso8601String();
+    // Store as local ISO 8601 to keep exact picked time
+    String formatLocal(DateTime dt) {
+      return dt.toIso8601String();
+    }
 
     debugPrint('[AddScheduleController] Updating schedule:');
     debugPrint('[AddScheduleController]   Local startDateTime: $startDateTime');
-    debugPrint('[AddScheduleController]   UTC start_time: ${formatUTC(startDateTime)}');
+    debugPrint(
+      '[AddScheduleController]   Local ISO start_time: ${formatLocal(startDateTime)}',
+    );
 
     final payload = {
       'title': title,
       'description': description,
-        // keep date in local to avoid shifting day
-        'date': formatLocalDate(DateTime(date.year, date.month, date.day)),
-      'start_time': formatUTC(startDateTime),
-      'end_time': formatUTC(endDateTime),
+      'date': formatLocal(DateTime(date.year, date.month, date.day)),
+      'start_time': formatLocal(startDateTime),
+      'end_time': formatLocal(endDateTime),
       'repeat_daily': repeatDaily,
       'priority': priority,
       'category': category,
-      'updated_at': formatUTC(DateTime.now()),
+      'updated_at': formatLocal(DateTime.now()),
     };
 
     isSaving.value = true;
@@ -263,6 +286,9 @@ class AddScheduleController extends GetxController {
 
       if (updated is Map<String, dynamic>) {
         _upsertLocalSchedule(updated);
+
+        // Reschedule notification reminder if enabled
+        await _scheduleNotificationIfEnabled(updated, startDateTime);
       } else {
         if (Get.isRegistered<ScheduleController>()) {
           await Get.find<ScheduleController>().fetchSchedules();
@@ -274,6 +300,62 @@ class AddScheduleController extends GetxController {
       throw Exception(e.message);
     } finally {
       isSaving.value = false;
+    }
+  }
+
+  /// Schedule notification reminder based on user's notification settings
+  Future<void> _scheduleNotificationIfEnabled(
+    Map<String, dynamic> schedule,
+    DateTime startDateTime,
+  ) async {
+    try {
+      // Get user's notification settings from ProfileController or fetch from database
+      final user = _supabase.currentUser;
+      if (user == null) return;
+
+      // Fetch user's notification preferences
+      final userPrefs = await _supabase
+          .from('users')
+          .select('enable_notifications, reminder_minutes_before')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (userPrefs == null) return;
+
+      final enableNotifications =
+          userPrefs['enable_notifications'] as bool? ?? true;
+      final reminderMinutesBefore =
+          userPrefs['reminder_minutes_before'] as int? ?? 15;
+
+      if (!enableNotifications) {
+        debugPrint(
+          '[AddScheduleController] Notifications disabled, skipping schedule',
+        );
+        return;
+      }
+
+      // Extract task ID and details
+      final taskId = schedule['id']?.toString() ?? '';
+      final title = schedule['title']?.toString() ?? 'Task';
+      final description = schedule['description']?.toString() ?? '';
+
+      // Use hash of ID to get a numeric ID for notification
+      final numericId = taskId.hashCode.abs() % 2147483647; // Max 32-bit int
+
+      await _notificationService.scheduleTaskReminder(
+        taskId: numericId,
+        taskTitle: title,
+        taskDescription: description,
+        scheduledDateTime: startDateTime,
+        reminderMinutesBefore: reminderMinutesBefore,
+      );
+
+      debugPrint(
+        '[AddScheduleController] Notification scheduled for task: $title',
+      );
+    } catch (e) {
+      debugPrint('[AddScheduleController] Error scheduling notification: $e');
+      // Don't throw - notification failure shouldn't block schedule creation
     }
   }
 }

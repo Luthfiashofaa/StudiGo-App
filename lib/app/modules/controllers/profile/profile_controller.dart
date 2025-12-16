@@ -6,10 +6,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../data/services/supabase_service.dart';
 import '../../../data/services/auth_persistence_service.dart';
+import '../../../data/services/notification_service.dart';
+import '../../../data/services/supabase_service.dart';
 import '../../bindings/auth/login_binding.dart';
 import '../../views/auth/login_view.dart';
+import '../schedule/schedule_controller.dart';
 
 class ProfileController extends GetxController {
   final emailController = TextEditingController();
@@ -25,8 +27,13 @@ class ProfileController extends GetxController {
   String? avatarUrl;
   String? _profileId;
 
+  // Notification reminder preferences
+  final RxBool enableNotifications = true.obs;
+  final RxInt reminderMinutesBefore = 15.obs;
+
   // Lazy getter to avoid null during initialization
   late final SupabaseService _supabase = Get.find<SupabaseService>();
+  final NotificationService _notificationService = NotificationService();
 
   final RxBool isSaving = false.obs;
   final RxBool isLoadingProfile = false.obs;
@@ -95,6 +102,12 @@ class ProfileController extends GetxController {
     if ((_original['dob'] ?? '') != dob) changed = true;
     if ((_original['country_code'] ?? '') != countryC) changed = true;
     if ((_original['country_dial_code'] ?? '') != countryD) changed = true;
+    if ((_original['enable_notifications'] ?? true) !=
+        enableNotifications.value)
+      changed = true;
+    if ((_original['reminder_minutes_before'] ?? 15) !=
+        reminderMinutesBefore.value)
+      changed = true;
 
     // avatarPath indicates a new local image that hasn't been uploaded yet
     if (avatarPath != null) changed = true;
@@ -114,6 +127,133 @@ class ProfileController extends GetxController {
     countryDialCode = dialCode;
     update();
     _checkChanges();
+  }
+
+  void setEnableNotifications(bool value) {
+    enableNotifications.value = value;
+    _checkChanges();
+    // Reschedule all notifications when setting changes
+    _rescheduleAllNotifications();
+  }
+
+  void setReminderMinutesBefore(int minutes) {
+    reminderMinutesBefore.value = minutes;
+    _checkChanges();
+    // Reschedule all notifications when setting changes
+    _rescheduleAllNotifications();
+  }
+
+  /// Reschedule all active task notifications based on current settings
+  Future<void> _rescheduleAllNotifications() async {
+    try {
+      // Get all schedules from ScheduleController
+      if (!Get.isRegistered<ScheduleController>()) {
+        debugPrint(
+          '[ProfileController] ScheduleController not registered, skipping reschedule',
+        );
+        return;
+      }
+
+      final scheduleCtrl = Get.find<ScheduleController>();
+      final schedules = scheduleCtrl.schedules;
+
+      if (schedules.isEmpty) {
+        debugPrint('[ProfileController] No schedules to reschedule');
+        return;
+      }
+
+      // Cancel all existing reminders
+      await _notificationService.cancelAllReminders();
+
+      // Reschedule only if notifications are enabled
+      if (!enableNotifications.value) {
+        debugPrint(
+          '[ProfileController] Notifications disabled, all reminders cancelled',
+        );
+        return;
+      }
+
+      // Reschedule each active schedule
+      for (final schedule in schedules) {
+        try {
+          final taskId = schedule['id']?.toString() ?? '';
+          final title = schedule['title']?.toString() ?? 'Task';
+          final description = schedule['description']?.toString() ?? '';
+          final startTimeStr = schedule['start_time']?.toString();
+
+          if (startTimeStr == null) continue;
+
+          // Parse start time
+          DateTime? startDateTime;
+          try {
+            final utc = DateTime.parse(startTimeStr).toUtc();
+            startDateTime = utc.toLocal();
+          } catch (_) {
+            continue;
+          }
+
+          // Use hash of ID to get a numeric ID for notification
+          final numericId = taskId.hashCode.abs() % 2147483647;
+
+          await _notificationService.scheduleTaskReminder(
+            taskId: numericId,
+            taskTitle: title,
+            taskDescription: description,
+            scheduledDateTime: startDateTime,
+            reminderMinutesBefore: reminderMinutesBefore.value,
+          );
+
+          debugPrint(
+            '[ProfileController] Rescheduled notification for: $title',
+          );
+        } catch (e) {
+          debugPrint('[ProfileController] Error rescheduling notification: $e');
+        }
+      }
+
+      debugPrint(
+        '[ProfileController] All ${schedules.length} notifications rescheduled with ${reminderMinutesBefore.value}min reminder',
+      );
+    } catch (e) {
+      debugPrint(
+        '[ProfileController] Error in _rescheduleAllNotifications: $e',
+      );
+    }
+  }
+
+  /// Debug: Show test notification immediately
+  Future<void> debugTestNotification() async {
+    try {
+      // Check permission status
+      final hasPermission = await _notificationService
+          .areNotificationsEnabled();
+      debugPrint(
+        '[ProfileController] Notification permission granted: $hasPermission',
+      );
+
+      if (!hasPermission) {
+        debugPrint('[ProfileController] Requesting notification permission...');
+        final granted = await _notificationService.requestPermissions();
+        if (!granted) {
+          debugPrint('[ProfileController] Permission denied!');
+          return;
+        }
+      }
+
+      await _notificationService.showTestNotification();
+      debugPrint('[ProfileController] Test notification sent');
+
+      // Check pending notifications count
+      final pending = await _notificationService.getPendingNotifications();
+      debugPrint(
+        '[ProfileController] Pending notifications: ${pending.length}',
+      );
+      for (final notif in pending) {
+        debugPrint('  - ID: ${notif.id}, Title: ${notif.title}');
+      }
+    } catch (e) {
+      debugPrint('[ProfileController] Error sending test notification: $e');
+    }
   }
 
   String _formatDate(DateTime d) =>
@@ -222,6 +362,13 @@ class ProfileController extends GetxController {
         _original['country_code'] = countryCode;
         _original['country_dial_code'] = countryDialCode;
         _original['avatar_url'] = avatarUrl ?? '';
+        _original['enable_notifications'] = enableNotifications.value;
+        _original['reminder_minutes_before'] = reminderMinutesBefore.value;
+
+        // Load notification preferences from database
+        enableNotifications.value = u['enable_notifications'] as bool? ?? true;
+        reminderMinutesBefore.value =
+            u['reminder_minutes_before'] as int? ?? 15;
 
         hasChanges.value = false;
         update();
@@ -456,6 +603,8 @@ class ProfileController extends GetxController {
         'birthdate': birthDate?.toIso8601String(),
         'phone_number': phoneController.text.trim(),
         'photo_url': uploadedAvatar,
+        'enable_notifications': enableNotifications.value,
+        'reminder_minutes_before': reminderMinutesBefore.value,
         'updated_at': DateTime.now().toIso8601String(),
       }..removeWhere((k, v) => v == null);
 
