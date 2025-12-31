@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../bindings/auth/verify_code_binding.dart';
-import '../../views/auth/verify_code_view.dart';
+import '../../../data/providers/auth_provider.dart';
 
 class ForgotPasswordController extends GetxController {
   final emailController = TextEditingController();
@@ -26,21 +25,33 @@ class ForgotPasswordController extends GetxController {
 
     isLoading.value = true;
     try {
+      // Use Supabase built-in reset password email
+      final authProvider = Get.find<AuthProvider>();
+      await authProvider.resetPassword(email);
+
       Get.snackbar(
-        'Sukses',
-        'Jika akun ada, kode reset akan dikirim ke $email',
+        'Success',
+        'Reset password link has been sent to $email. Please check your email.',
         snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 4),
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
       );
 
-      // Navigate to the code entry screen (prefill email)
-      Get.to(
-        () => const VerifyCodeView(),
-        binding: VerifyCodeBinding(),
-        arguments: {'email': email},
-      );
+      // Go back to login screen after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        if (Get.isRegistered<ForgotPasswordController>()) {
+          Get.back();
+        }
+      });
     } catch (e) {
-      Get.snackbar('Error', e.toString(), snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Failed to send reset email. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }

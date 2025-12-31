@@ -67,22 +67,26 @@ class ScheduleController extends GetxController {
             DateTime? dateValue;
             if (rawDate != null) {
               try {
-                dateValue = DateTime.parse(rawDate.replaceAll(' ', 'T')).toLocal();
+                dateValue = DateTime.parse(rawDate.replaceAll(' ', 'T'));
               } catch (_) {
-                dateValue = DateTime.tryParse(rawDate)?.toLocal();
+                dateValue = DateTime.tryParse(rawDate);
               }
             }
             // Fallback to start_time if date column missing
             if (dateValue == null && rawStart != null) {
               try {
-                dateValue = DateTime.parse(rawStart.replaceAll(' ', 'T')).toLocal();
+                dateValue = DateTime.parse(rawStart.replaceAll(' ', 'T'));
               } catch (_) {
-                dateValue = DateTime.tryParse(rawStart)?.toLocal();
+                dateValue = DateTime.tryParse(rawStart);
               }
             }
 
             if (dateValue == null) return false;
-            final itemDate = DateTime(dateValue.year, dateValue.month, dateValue.day);
+            final itemDate = DateTime(
+              dateValue.year,
+              dateValue.month,
+              dateValue.day,
+            );
 
             if (repeats) {
               // Repeat only from its start date forward (inclusive)
@@ -124,15 +128,13 @@ class ScheduleController extends GetxController {
     final user = _supabase.currentUser;
     if (user == null) throw Exception('User belum login.');
 
-    // Cancel notification reminder for this schedule
-    try {
-      final taskId = int.tryParse(id.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      if (taskId > 0) {
-        await _notificationService.cancelTaskReminder(taskId);
-      }
-    } catch (e) {
-      debugPrint('Warning: Could not cancel notification: $e');
-    }
+    // Note: Firebase reminders are stored in backend database
+    // They will naturally expire when their reminder_at time passes
+    // For production, consider adding a backend endpoint to cancel reminders by schedule ID
+    // For now, we'll just delete the schedule and let backend reminders expire
+    debugPrint(
+      '[ScheduleController] Deleting schedule $id (Firebase reminders will expire naturally)',
+    );
 
     await _supabase
         .from('schedules')

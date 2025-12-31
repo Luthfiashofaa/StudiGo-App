@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "900421773320",
+    "project_id": "studigo-9876e",
+    "storage_bucket": "studigo-9876e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:900421773320:android:34b988d07ffd431c8409bd",
+        "android_client_info": {
+          "package_name": "com.example.studigo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADGkJdHRHf0jlSqs_cLT_SYdLtbN9rOXs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

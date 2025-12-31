@@ -34,7 +34,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
   void _showTopNotification(String message, Color bgColor) {
     if (!mounted) return;
-    
+
     final overlay = Overlay.of(context);
     final overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
@@ -48,10 +48,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: bgColor.withOpacity(0.8),
-                width: 2,
-              ),
+              border: Border.all(color: bgColor.withOpacity(0.8), width: 2),
               boxShadow: [
                 BoxShadow(
                   color: bgColor.withOpacity(0.4),
@@ -80,7 +77,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
         ),
       ),
     );
-    
+
     overlay.insert(overlayEntry);
     Future.delayed(const Duration(seconds: 2), () {
       if (overlayEntry.mounted) {
@@ -109,8 +106,8 @@ class _AddScheduleViewState extends State<AddScheduleView> {
 
       final startRaw = sched['start_time']?.toString();
       final endRaw = sched['end_time']?.toString();
-      final start = startRaw != null ? DateTime.tryParse(startRaw)?.toLocal() : null;
-      final end = endRaw != null ? DateTime.tryParse(endRaw)?.toLocal() : null;
+      final start = startRaw != null ? DateTime.tryParse(startRaw) : null;
+      final end = endRaw != null ? DateTime.tryParse(endRaw) : null;
       if (start != null) {
         _selectedDate = DateTime(start.year, start.month, start.day);
         _startTime = TimeOfDay(hour: start.hour, minute: start.minute);
@@ -190,14 +187,18 @@ class _AddScheduleViewState extends State<AddScheduleView> {
       _categoryError = _selectedCategory == null || _selectedCategory!.isEmpty;
     });
 
-    if (_nameError || _descError || _dateError || _timeError || _categoryError) {
+    if (_nameError ||
+        _descError ||
+        _dateError ||
+        _timeError ||
+        _categoryError) {
       final missing = <String>[];
       if (_nameError) missing.add('Nama jadwal');
       if (_descError) missing.add('Deskripsi');
       if (_dateError) missing.add('Tanggal');
       if (_timeError) missing.add('Waktu mulai & selesai');
       if (_categoryError) missing.add('Kategori');
-      
+
       if (mounted) {
         _showTopNotification(
           'Lengkapi field: ${missing.join(', ')}',
@@ -271,15 +272,13 @@ class _AddScheduleViewState extends State<AddScheduleView> {
         String errorMessage = 'Terjadi kesalahan saat menyimpan jadwal';
         if (e.toString().contains('login')) {
           errorMessage = 'Silakan login terlebih dahulu';
-        } else if (e.toString().contains('network') || e.toString().contains('timeout')) {
+        } else if (e.toString().contains('network') ||
+            e.toString().contains('timeout')) {
           errorMessage = 'Gagal koneksi, periksa internet Anda';
         } else {
           errorMessage = e.toString().replaceAll('Exception: ', '').trim();
         }
-        _showTopNotification(
-          errorMessage,
-          Colors.red.shade600,
-        );
+        _showTopNotification(errorMessage, Colors.red.shade600);
       }
       debugPrint('[AddScheduleView] Save error: $e');
     } finally {
@@ -562,15 +561,10 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                           children: const [
                             Text(
                               'Pilih',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                             SizedBox(width: 10),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: Colors.grey,
-                            ),
+                            Icon(Icons.arrow_drop_down, color: Colors.grey),
                           ],
                         ),
                       ),
@@ -614,10 +608,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                       },
                       items: categories
                           .map(
-                            (c) => DropdownMenuItem(
-                              value: c,
-                              child: Text(c),
-                            ),
+                            (c) => DropdownMenuItem(value: c, child: Text(c)),
                           )
                           .toList(),
                       onChanged: (v) => setState(() {
@@ -668,9 +659,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white,
-                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
                   : Text(
@@ -791,7 +780,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     Color bgColor;
     Color borderColor;
     Color textColor;
-    
+
     switch (label) {
       case 'Tinggi':
         bgColor = selected ? const Color(0xFFEF5350) : const Color(0xFFFFCDD2);
@@ -825,10 +814,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: borderColor,
-            width: selected ? 2.5 : 1.5,
-          ),
+          border: Border.all(color: borderColor, width: selected ? 2.5 : 1.5),
           boxShadow: selected
               ? [
                   BoxShadow(

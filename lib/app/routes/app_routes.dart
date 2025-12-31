@@ -7,6 +7,7 @@ abstract class Routes {
   static const home = _Paths.home;
   static const addschedule = _Paths.addschedule;
   static const profile = _Paths.profile;
+  static const testNotification = _Paths.testNotification;
 }
 
 abstract class _Paths {
@@ -16,4 +17,5 @@ abstract class _Paths {
   static const home = '/home';
   static const addschedule = '/add-schedule';
   static const profile = '/profile';
+  static const testNotification = '/test-notification';
 }
