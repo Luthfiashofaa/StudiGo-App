@@ -582,23 +582,6 @@ class ProfileView extends GetView<ProfileController> {
                           ),
                         ),
 
-                        const SizedBox(height: 12),
-
-                        // Firebase Notification Test Button
-                        OutlinedButton.icon(
-                          onPressed: () => Get.toNamed('/test-notification'),
-                          icon: const Icon(Icons.cloud_upload),
-                          label: const Text('Test Firebase Notification'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: primaryBlue,
-                            side: BorderSide(color: primaryBlue),
-                            minimumSize: Size.fromHeight(isTablet ? 48 : 44),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-
                         SizedBox(height: isTablet ? 24 : 20),
                         Obx(
                           () => ElevatedButton(
