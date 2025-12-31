@@ -48,3 +48,24 @@ app.*.map.json
 # Environment files
 .env
 .env.*
+
+# Firebase / Supabase secrets
+studigo-9876e-firebase-adminsdk-fbsvc-7b5f02c0d6.json
+
+# Local credentials / keys (keep out of git)
+*.keystore
+*.jks
+*.p12
+*.p8
+*.pem
+*.key
+*.crt
+*.der
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+android/local.properties
+supabase/.env.local
+supabase/.branches
+supabase/.settings
+supabase/.temp
+supabase/.supabase

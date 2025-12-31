@@ -564,33 +564,21 @@ class ProfileView extends GetView<ProfileController> {
                                         ),
                                       ),
                               ),
+                              const SizedBox(height: 8),
+                              // Info text
+                              Obx(
+                                () => c.enableNotifications.value
+                                    ? Text(
+                                        'Notifikasi otomatis akan muncul ${c.reminderMinutesBefore.value} menit sebelum jadwal dimulai',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.blue.shade700,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
                             ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Test Notification Button
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            await Get.find<ProfileController>()
-                                .debugTestNotification();
-                            Get.snackbar(
-                              'Test Notifikasi',
-                              'Notifikasi test dikirim! Cek status bar Anda.',
-                              snackPosition: SnackPosition.BOTTOM,
-                              duration: const Duration(seconds: 3),
-                            );
-                          },
-                          icon: const Icon(Icons.notifications_active),
-                          label: const Text('Test Notifikasi Sekarang'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: primaryBlue,
-                            side: BorderSide(color: primaryBlue),
-                            minimumSize: Size.fromHeight(isTablet ? 48 : 44),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
                           ),
                         ),
 

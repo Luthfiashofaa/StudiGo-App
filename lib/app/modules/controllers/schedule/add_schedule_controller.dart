@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/notification_service.dart';
+import '../../../data/services/reminder_service.dart';
 import '../../../data/services/supabase_service.dart';
 import '../home/home_controller.dart';
 import 'schedule_controller.dart';
@@ -13,6 +14,7 @@ class AddScheduleController extends GetxController {
 
   final SupabaseService _supabase;
   final NotificationService _notificationService = NotificationService();
+  final ReminderService _reminderService = ReminderService();
 
   final RxBool isSaving = false.obs;
 
@@ -20,13 +22,11 @@ class AddScheduleController extends GetxController {
     if (raw is DateTime) return raw.toLocal();
     if (raw is String) {
       try {
-        // Parse as UTC (ISO 8601 format from database)
-        final utc = DateTime.parse(raw).toUtc();
-        final local = utc.toLocal();
-        debugPrint(
-          '[AddScheduleController] _parseToLocal: $raw -> $local (UTC+local)',
-        );
-        return local;
+        // Parse as local time (stored as ISO 8601 without timezone)
+        // The stored string represents local time directly
+        final parsed = DateTime.parse(raw);
+        debugPrint('[AddScheduleController] _parseToLocal: $raw -> $parsed');
+        return parsed;
       } catch (e) {
         debugPrint('[AddScheduleController] _parseToLocal FAILED: $raw - $e');
         return null;
@@ -313,19 +313,21 @@ class AddScheduleController extends GetxController {
       final user = _supabase.currentUser;
       if (user == null) return;
 
-      // Fetch user's notification preferences
+      // Fetch user's notification preferences (enable_notifications & reminder_minutes_before)
       final userPrefs = await _supabase
           .from('users')
           .select('enable_notifications, reminder_minutes_before')
           .eq('id', user.id)
           .maybeSingle();
 
-      if (userPrefs == null) return;
+      // Jika tidak ada record userPrefs, default: aktifkan notifikasi dengan 15 menit sebelumnya
+      final enableNotifications = userPrefs == null
+          ? true
+          : (userPrefs['enable_notifications'] as bool? ?? true);
 
-      final enableNotifications =
-          userPrefs['enable_notifications'] as bool? ?? true;
-      final reminderMinutesBefore =
-          userPrefs['reminder_minutes_before'] as int? ?? 15;
+      final reminderMinutesBefore = userPrefs == null
+          ? 15
+          : (userPrefs['reminder_minutes_before'] as int? ?? 15);
 
       if (!enableNotifications) {
         debugPrint(
@@ -338,21 +340,54 @@ class AddScheduleController extends GetxController {
       final taskId = schedule['id']?.toString() ?? '';
       final title = schedule['title']?.toString() ?? 'Task';
       final description = schedule['description']?.toString() ?? '';
+      final category = schedule['category']?.toString() ?? 'Umum';
 
-      // Use hash of ID to get a numeric ID for notification
-      final numericId = taskId.hashCode.abs() % 2147483647; // Max 32-bit int
+      // Get FCM token
+      final fcmToken = await _notificationService.getFcmToken();
+      if (fcmToken == null || fcmToken.isEmpty) {
+        debugPrint(
+          '[AddScheduleController] No FCM token available, skipping Firebase notification',
+        );
+        return;
+      }
 
-      await _notificationService.scheduleTaskReminder(
-        taskId: numericId,
-        taskTitle: title,
-        taskDescription: description,
-        scheduledDateTime: startDateTime,
-        reminderMinutesBefore: reminderMinutesBefore,
+      // Skip if reminder time already passed
+      final reminderDt = startDateTime.subtract(
+        Duration(minutes: reminderMinutesBefore),
       );
+      if (!reminderDt.isAfter(DateTime.now())) {
+        debugPrint(
+          '[AddScheduleController] Skipping $reminderMinutesBefore-min reminder for "$title" (past at ${reminderDt.toString()})',
+        );
+        return;
+      }
 
-      debugPrint(
-        '[AddScheduleController] Notification scheduled for task: $title',
-      );
+      // Use Firebase backend for scheduling with user's preference
+      try {
+        final success = await _reminderService.scheduleFirebaseReminder(
+          userId: user.id,
+          deviceToken: fcmToken,
+          title: '⏰ $title',
+          body: '[$category] akan dimulai dalam $reminderMinutesBefore menit',
+          scheduledDateTime: startDateTime,
+          minutesBefore: reminderMinutesBefore,
+          category: category,
+        );
+
+        if (success) {
+          debugPrint(
+            '[AddScheduleController] ✓ Scheduled $reminderMinutesBefore-min Firebase reminder for "$title" at ${reminderDt.toString()}',
+          );
+        } else {
+          debugPrint(
+            '[AddScheduleController] ✗ Failed to schedule $reminderMinutesBefore-min Firebase reminder for "$title"',
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          '[AddScheduleController] Error scheduling Firebase notification: $e',
+        );
+      }
     } catch (e) {
       debugPrint('[AddScheduleController] Error scheduling notification: $e');
       // Don't throw - notification failure shouldn't block schedule creation

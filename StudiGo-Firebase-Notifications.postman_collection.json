@@ -1,0 +1,87 @@
+{
+  "info": {
+    "name": "StudiGo Firebase Notifications",
+    "description": "Collection untuk test Firebase push notifications",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Schedule Reminder",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"{{USER_ID}}\",\n  \"device_token\": \"{{FCM_TOKEN}}\",\n  \"title\": \"Test Pengingat Jadwal\",\n  \"body\": \"Acara dimulai 5 menit lagi!\",\n  \"reminder_at\": \"{{REMINDER_TIME}}\"\n}"
+        },
+        "url": {
+          "raw": "https://{{PROJECT_ID}}.functions.supabase.co/send-reminder",
+          "protocol": "https",
+          "host": [
+            "{{PROJECT_ID}}",
+            "functions",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "send-reminder"
+          ]
+        },
+        "description": "Simpan jadwal pengingat ke Supabase"
+      }
+    },
+    {
+      "name": "2. Manual Dispatch",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://{{PROJECT_ID}}.functions.supabase.co/send-reminder/dispatch",
+          "protocol": "https",
+          "host": [
+            "{{PROJECT_ID}}",
+            "functions",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "send-reminder",
+            "dispatch"
+          ]
+        },
+        "description": "Panggil endpoint untuk mengirim reminder yang sudah jatuh tempo"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "PROJECT_ID",
+      "value": "YOUR_SUPABASE_PROJECT_ID",
+      "type": "string",
+      "description": "Supabase project ID (misal: abc123def456)"
+    },
+    {
+      "key": "USER_ID",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string",
+      "description": "User ID dari auth.users (pakai UUID Anda)"
+    },
+    {
+      "key": "FCM_TOKEN",
+      "value": "YOUR_FCM_TOKEN_HERE",
+      "type": "string",
+      "description": "FCM token dari app (copy dari TestNotificationScreen)"
+    },
+    {
+      "key": "REMINDER_TIME",
+      "value": "2025-12-31T14:30:00Z",
+      "type": "string",
+      "description": "ISO 8601 datetime (UTC) kapan reminder dikirim (2-3 menit ke depan)"
+    }
+  ]
+}

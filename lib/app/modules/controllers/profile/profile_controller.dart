@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/auth_persistence_service.dart';
 import '../../../data/services/notification_service.dart';
+import '../../../data/services/reminder_service.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../bindings/auth/login_binding.dart';
 import '../../views/auth/login_view.dart';
@@ -34,6 +35,7 @@ class ProfileController extends GetxController {
   // Lazy getter to avoid null during initialization
   late final SupabaseService _supabase = Get.find<SupabaseService>();
   final NotificationService _notificationService = NotificationService();
+  final ReminderService _reminderService = ReminderService();
 
   final RxBool isSaving = false.obs;
   final RxBool isLoadingProfile = false.obs;
@@ -162,18 +164,34 @@ class ProfileController extends GetxController {
         return;
       }
 
-      // Cancel all existing reminders
-      await _notificationService.cancelAllReminders();
+      // Note: Cannot cancel Firebase reminders from client easily
+      // In production, consider adding a "cancel all" backend endpoint
 
       // Reschedule only if notifications are enabled
       if (!enableNotifications.value) {
         debugPrint(
-          '[ProfileController] Notifications disabled, all reminders cancelled',
+          '[ProfileController] Notifications disabled, skipping reschedule',
         );
         return;
       }
 
-      // Reschedule each active schedule
+      final user = _supabase.currentUser;
+      if (user == null) return;
+
+      // Get FCM token
+      final fcmToken = await _notificationService.getFcmToken();
+      if (fcmToken == null || fcmToken.isEmpty) {
+        debugPrint(
+          '[ProfileController] No FCM token available, skipping reschedule',
+        );
+        return;
+      }
+
+      debugPrint(
+        '[ProfileController] Rescheduling ${schedules.length} notifications with Firebase...',
+      );
+
+      // Reschedule each active schedule via Firebase
       for (final schedule in schedules) {
         try {
           final taskId = schedule['id']?.toString() ?? '';
@@ -183,36 +201,49 @@ class ProfileController extends GetxController {
 
           if (startTimeStr == null) continue;
 
-          // Parse start time
+          // Parse start time (stored as local ISO 8601)
           DateTime? startDateTime;
           try {
-            final utc = DateTime.parse(startTimeStr).toUtc();
-            startDateTime = utc.toLocal();
+            startDateTime = DateTime.parse(startTimeStr);
           } catch (_) {
             continue;
           }
 
-          // Use hash of ID to get a numeric ID for notification
-          final numericId = taskId.hashCode.abs() % 2147483647;
+          // Schedule reminders for 5, 10, 15 minutes before
+          const reminderMinutes = [5, 10, 15];
 
-          await _notificationService.scheduleTaskReminder(
-            taskId: numericId,
-            taskTitle: title,
-            taskDescription: description,
-            scheduledDateTime: startDateTime,
-            reminderMinutesBefore: reminderMinutesBefore.value,
-          );
+          for (final minutes in reminderMinutes) {
+            final reminderDt = startDateTime.subtract(
+              Duration(minutes: minutes),
+            );
 
-          debugPrint(
-            '[ProfileController] Rescheduled notification for: $title',
-          );
+            // Skip if reminder time already passed
+            if (!reminderDt.isAfter(DateTime.now())) {
+              continue;
+            }
+
+            final success = await _reminderService.scheduleFirebaseReminder(
+              userId: user.id,
+              deviceToken: fcmToken,
+              title: '$minutes-min reminder: $title',
+              body: description.isEmpty ? 'Task starts soon!' : description,
+              scheduledDateTime: startDateTime,
+              minutesBefore: minutes,
+            );
+
+            if (success) {
+              debugPrint(
+                '[ProfileController] ✓ Rescheduled $minutes-min Firebase reminder for: $title',
+              );
+            }
+          }
         } catch (e) {
           debugPrint('[ProfileController] Error rescheduling notification: $e');
         }
       }
 
       debugPrint(
-        '[ProfileController] All ${schedules.length} notifications rescheduled with ${reminderMinutesBefore.value}min reminder',
+        '[ProfileController] All ${schedules.length} notifications rescheduled with Firebase',
       );
     } catch (e) {
       debugPrint(

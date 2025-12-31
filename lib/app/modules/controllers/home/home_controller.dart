@@ -68,13 +68,11 @@ class HomeController extends GetxController {
     );
 
     DateTime? parseLocal(dynamic raw) {
-      if (raw is DateTime) return raw.toLocal();
+      // Timestamps disimpan sebagai lokal ISO (tanpa konversi tz)
+      if (raw is DateTime) return raw;
       if (raw is String) {
         try {
-          // Parse as UTC from database, convert to local
-          final utc = DateTime.parse(raw).toUtc();
-          final local = utc.toLocal();
-          return local;
+          return DateTime.parse(raw);
         } catch (_) {
           return null;
         }

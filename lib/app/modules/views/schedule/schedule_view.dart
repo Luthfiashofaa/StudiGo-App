@@ -24,7 +24,7 @@ class _ScheduleViewState extends State<ScheduleView> {
     _dateScrollController = ScrollController();
     _controller = Get.put(ScheduleController());
     _controller.fetchSchedules(date: _selectedDate);
-    
+
     // Scroll to today's date after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToToday();
@@ -33,14 +33,14 @@ class _ScheduleViewState extends State<ScheduleView> {
 
   void _scrollToToday() {
     final now = DateTime.now();
-    
+
     if (now.year == _selectedDate.year && now.month == _selectedDate.month) {
       // Today is in the current month
       final dayIndex = now.day - 1;
       final cardSize = MediaQuery.of(context).size.width >= 600 ? 70.0 : 64.0;
       final spacing = 10.0;
       final offset = dayIndex * (cardSize + spacing);
-      
+
       _dateScrollController.animateTo(
         offset,
         duration: const Duration(milliseconds: 500),
@@ -66,7 +66,9 @@ class _ScheduleViewState extends State<ScheduleView> {
   }
 
   Widget _buildScheduleCard(Map<String, dynamic> t, bool isTablet) {
-    final Color border = _priorityColor(t['priority']?.toString()).withOpacity(0.9);
+    final Color border = _priorityColor(
+      t['priority']?.toString(),
+    ).withOpacity(0.9);
     final String time = _formatRange(t);
     final String title = t['title']?.toString() ?? '';
     final String desc = t['description']?.toString() ?? '-';
@@ -169,7 +171,8 @@ class _ScheduleViewState extends State<ScheduleView> {
                                   color: Colors.redAccent,
                                   size: isTablet ? 26 : 24,
                                 ),
-                                onPressed: () => _confirmDelete(t['id'].toString()),
+                                onPressed: () =>
+                                    _confirmDelete(t['id'].toString()),
                               ),
                             ],
                           ),
@@ -209,7 +212,9 @@ class _ScheduleViewState extends State<ScheduleView> {
                           ),
                           SizedBox(width: isTablet ? 10 : 8),
                           Text(
-                            priority.isEmpty ? 'Prioritas' : 'Prioritas $priority',
+                            priority.isEmpty
+                                ? 'Prioritas'
+                                : 'Prioritas $priority',
                             style: TextStyle(
                               color: _priorityColor(priority),
                               fontWeight: FontWeight.w700,
@@ -234,8 +239,8 @@ class _ScheduleViewState extends State<ScheduleView> {
   }
 
   String _formatRange(Map<String, dynamic> item) {
-    final start = DateTime.tryParse(item['start_time']?.toString() ?? '')?.toLocal();
-    final end = DateTime.tryParse(item['end_time']?.toString() ?? '')?.toLocal();
+    final start = DateTime.tryParse(item['start_time']?.toString() ?? '');
+    final end = DateTime.tryParse(item['end_time']?.toString() ?? '');
     if (start == null || end == null) return '';
     String fmt(DateTime dt) =>
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -278,16 +283,16 @@ class _ScheduleViewState extends State<ScheduleView> {
       DateTime? dateValue;
       if (rawDate != null) {
         try {
-          dateValue = DateTime.parse(rawDate.replaceAll(' ', 'T')).toLocal();
+          dateValue = DateTime.parse(rawDate.replaceAll(' ', 'T'));
         } catch (_) {
-          dateValue = DateTime.tryParse(rawDate)?.toLocal();
+          dateValue = DateTime.tryParse(rawDate);
         }
       }
       if (dateValue == null && rawStart != null) {
         try {
-          dateValue = DateTime.parse(rawStart.replaceAll(' ', 'T')).toLocal();
+          dateValue = DateTime.parse(rawStart.replaceAll(' ', 'T'));
         } catch (_) {
-          dateValue = DateTime.tryParse(rawStart)?.toLocal();
+          dateValue = DateTime.tryParse(rawStart);
         }
       }
       if (dateValue == null) continue;
@@ -296,8 +301,8 @@ class _ScheduleViewState extends State<ScheduleView> {
       final bool matches = repeats
           ? !date.isBefore(itemDate)
           : (itemDate.year == date.year &&
-              itemDate.month == date.month &&
-              itemDate.day == date.day);
+                itemDate.month == date.month &&
+                itemDate.day == date.day);
 
       if (matches) {
         final c = _priorityDotColor(item['priority']?.toString());
@@ -499,9 +504,8 @@ class _ScheduleViewState extends State<ScheduleView> {
                       controller: _dateScrollController,
                       scrollDirection: Axis.horizontal,
                       itemCount: days.length + 1,
-                      separatorBuilder: (_, __) => SizedBox(
-                        width: isTablet ? 10 : 10,
-                      ),
+                      separatorBuilder: (_, __) =>
+                          SizedBox(width: isTablet ? 10 : 10),
                       itemBuilder: (context, idx) {
                         if (idx == days.length) {
                           final buttonSize = isTablet ? 70.0 : 64.0;
@@ -567,16 +571,17 @@ class _ScheduleViewState extends State<ScheduleView> {
 
                         final cardSize = isTablet ? 72.0 : 64.0;
                         final selectedColor = isTablet
-                          ? const Color(0xFF7FB3FF)
-                          : const Color(0xFF9BBEFF);
+                            ? const Color(0xFF7FB3FF)
+                            : const Color(0xFF9BBEFF);
                         final selectedBorder = isTablet
-                          ? const Color(0xFF4C8DFF)
-                          : const Color(0xFF0059FF);
-                        final unselectedColor =
-                          isTablet ? const Color(0xFFF5F7FB) : Colors.white;
+                            ? const Color(0xFF4C8DFF)
+                            : const Color(0xFF0059FF);
+                        final unselectedColor = isTablet
+                            ? const Color(0xFFF5F7FB)
+                            : Colors.white;
                         final unselectedBorder = isTablet
-                          ? const Color(0xFFB7CCFF)
-                          : const Color(0xFF9BBEFF);
+                            ? const Color(0xFFB7CCFF)
+                            : const Color(0xFF9BBEFF);
 
                         return GestureDetector(
                           onTap: () async {
@@ -668,18 +673,14 @@ class _ScheduleViewState extends State<ScheduleView> {
                   Expanded(
                     child: Obx(() {
                       if (_controller.isLoading.value) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
+                        return const Center(child: CircularProgressIndicator());
                       }
 
                       if (_controller.schedules.isEmpty) {
                         return Center(
                           child: Text(
                             'Belum ada jadwal untuk tanggal ini.',
-                            style: TextStyle(
-                              fontSize: isTablet ? 16 : 14,
-                            ),
+                            style: TextStyle(fontSize: isTablet ? 16 : 14),
                           ),
                         );
                       }
@@ -691,11 +692,11 @@ class _ScheduleViewState extends State<ScheduleView> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 18,
-                              mainAxisSpacing: 18,
-                              childAspectRatio: 1.85,
-                            ),
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 18,
+                                  mainAxisSpacing: 18,
+                                  childAspectRatio: 1.85,
+                                ),
                             itemCount: _controller.schedules.length,
                             itemBuilder: (context, index) {
                               final t = _controller.schedules[index];
@@ -710,9 +711,8 @@ class _ScheduleViewState extends State<ScheduleView> {
                         child: ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
                           itemCount: _controller.schedules.length,
-                          separatorBuilder: (_, __) => SizedBox(
-                            height: isTablet ? 22 : 18,
-                          ),
+                          separatorBuilder: (_, __) =>
+                              SizedBox(height: isTablet ? 22 : 18),
                           itemBuilder: (context, index) {
                             final t = _controller.schedules[index];
                             return _buildScheduleCard(t, isTablet);
