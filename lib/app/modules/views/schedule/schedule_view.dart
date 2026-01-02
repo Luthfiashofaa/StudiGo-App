@@ -156,25 +156,20 @@ class _ScheduleViewState extends State<ScheduleView> {
                                   style: TextStyle(
                                     fontSize: isTablet ? 22 : 18,
                                     fontWeight: FontWeight.w800,
+                                    color: Colors.black,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           SizedBox(width: isTablet ? 10 : 8),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.redAccent,
-                                  size: isTablet ? 26 : 24,
-                                ),
-                                onPressed: () =>
-                                    _confirmDelete(t['id'].toString()),
-                              ),
-                            ],
+                          IconButton(
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: Colors.redAccent,
+                              size: isTablet ? 26 : 24,
+                            ),
+                            onPressed: () => _confirmDelete(t['id'].toString()),
                           ),
                         ],
                       ),

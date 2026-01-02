@@ -1,11 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthRetryableFetchException;
 
 import '../../../data/services/auth_persistence_service.dart';
-import '../../../data/services/notification_service.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../bindings/auth/login_binding.dart';
 import '../../views/auth/login_view.dart';
@@ -16,7 +13,6 @@ class ScheduleController extends GetxController {
     : _supabase = supabase ?? Get.find<SupabaseService>();
 
   final SupabaseService _supabase;
-  final NotificationService _notificationService = NotificationService();
 
   final RxBool isLoading = false.obs;
   // Full list of schedules for indicator dots

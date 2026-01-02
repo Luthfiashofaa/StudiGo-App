@@ -33,7 +33,15 @@ Future<void> main() async {
   }
 
   // Initialize Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('[Firebase] Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('[Firebase] Error initializing Firebase: $e');
+    // Continue anyway - app can work without Firebase
+  }
 
   // Initialize NotificationService early (which includes Firebase Cloud Messaging)
   final notificationService = NotificationService();
