@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/shell/shell_controller.dart';
 import '../../controllers/home/home_controller.dart';
+import '../../controllers/profile/profile_controller.dart';
 import '../../views/home/home_view.dart';
 import '../../views/schedule/schedule_view.dart';
 import '../../views/schedule/add_schedule_view.dart';
 import '../../views/streak/streak_view.dart';
 import '../../views/profile/profile_view.dart';
+import '../../../data/services/notification_service.dart';
 
 class AppShell extends StatefulWidget {
   final int initialIndex;
@@ -19,11 +21,11 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   late final ShellController _shellController;
 
-  final List<Widget> _pages = const [
+  final List<Widget> _pages = [
     HomeView(),
-    ScheduleView(),
-    StreakView(),
-    ProfileView(),
+    const ScheduleView(),
+    const StreakView(),
+    const ProfileView(),
   ];
 
   void _onTap(int idx) => _shellController.setIndex(idx);
@@ -77,6 +79,27 @@ class _AppShellState extends State<AppShell> {
     // Ensure HomeController is available for HomeView
     if (!Get.isRegistered<HomeController>()) {
       Get.lazyPut<HomeController>(() => HomeController(), fenix: true);
+    }
+    // Ensure ProfileController is available for ProfileView
+    if (!Get.isRegistered<ProfileController>()) {
+      Get.lazyPut<ProfileController>(() => ProfileController(), fenix: true);
+    }
+    // Request notification permissions
+    _requestNotificationPermission();
+  }
+
+  /// Request notification permission from user
+  Future<void> _requestNotificationPermission() async {
+    try {
+      final notificationService = NotificationService();
+      final granted = await notificationService.requestPermissions();
+      if (granted) {
+        debugPrint('[AppShell] Notification permissions granted');
+      } else {
+        debugPrint('[AppShell] Notification permissions denied');
+      }
+    } catch (e) {
+      debugPrint('[AppShell] Error requesting notification permissions: $e');
     }
   }
 

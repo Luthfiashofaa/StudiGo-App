@@ -22,6 +22,9 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
     setState(() => _processing = true);
     final access = fragmentMap['access_token'];
     final refresh = fragmentMap['refresh_token'];
+    final type =
+        fragmentMap['type']; // Check if this is recovery or normal login
+
     if (access == null) {
       Get.snackbar(
         'No token',
@@ -42,12 +45,36 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
           'access_token': access,
           if (refresh != null) 'refresh_token': refresh,
         });
-        Get.snackbar(
-          'Signed in',
-          'Sign-in completed via SDK',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-        Get.offAllNamed('/home');
+
+        // Check if this is password recovery
+        if (type == 'recovery') {
+          Get.snackbar(
+            'Recovery Session Active',
+            'Please set your new password',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.blue,
+            colorText: Colors.white,
+          );
+          // Navigate to new password screen with recovery token
+          Get.offAllNamed(
+            '/new-password',
+            arguments: {
+              'access_token': access,
+              'refresh_token': refresh,
+              'type': type,
+            },
+          );
+        } else {
+          Get.snackbar(
+            'Signed in',
+            'Sign-in completed successfully',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
+          Get.offAllNamed('/home');
+        }
+
         setState(() => _processing = false);
         return;
       } catch (e) {

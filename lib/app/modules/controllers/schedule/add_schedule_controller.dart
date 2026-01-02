@@ -2,15 +2,134 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../data/services/notification_service.dart';
+import '../../../data/services/reminder_service.dart';
 import '../../../data/services/supabase_service.dart';
+import '../home/home_controller.dart';
+import 'schedule_controller.dart';
 
 class AddScheduleController extends GetxController {
   AddScheduleController({SupabaseService? supabase})
     : _supabase = supabase ?? Get.find<SupabaseService>();
 
   final SupabaseService _supabase;
+  final NotificationService _notificationService = NotificationService();
+  final ReminderService _reminderService = ReminderService();
 
   final RxBool isSaving = false.obs;
+
+  DateTime? _parseToLocal(dynamic raw) {
+    if (raw is DateTime) return raw.toLocal();
+    if (raw is String) {
+      try {
+        // Parse as local time (stored as ISO 8601 without timezone)
+        // The stored string represents local time directly
+        final parsed = DateTime.parse(raw);
+        debugPrint('[AddScheduleController] _parseToLocal: $raw -> $parsed');
+        return parsed;
+      } catch (e) {
+        debugPrint('[AddScheduleController] _parseToLocal FAILED: $raw - $e');
+        return null;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _normalizeScheduleMap(Map<String, dynamic> schedule) {
+    final normalized = Map<String, dynamic>.from(schedule);
+
+    final startLocal = _parseToLocal(schedule['start_time']);
+    final endLocal = _parseToLocal(schedule['end_time']);
+    final dateLocal = _parseToLocal(schedule['date']);
+
+    debugPrint('[AddScheduleController] Normalizing schedule:');
+    debugPrint(
+      '[AddScheduleController]   Raw start_time: ${schedule['start_time']}',
+    );
+    debugPrint('[AddScheduleController]   Parsed start_time: $startLocal');
+
+    if (startLocal != null) {
+      normalized['start_time'] = startLocal.toIso8601String();
+      debugPrint(
+        '[AddScheduleController]   Normalized start_time: ${normalized['start_time']}',
+      );
+    }
+    if (endLocal != null) {
+      normalized['end_time'] = endLocal.toIso8601String();
+    }
+    if (dateLocal != null) {
+      normalized['date'] = DateTime(
+        dateLocal.year,
+        dateLocal.month,
+        dateLocal.day,
+      ).toIso8601String();
+    }
+
+    return normalized;
+  }
+
+  void _upsertLocalSchedule(Map<String, dynamic> schedule) {
+    if (!Get.isRegistered<ScheduleController>()) return;
+    final scheduleCtrl = Get.find<ScheduleController>();
+    final normalized = _normalizeScheduleMap(schedule);
+    final idx = scheduleCtrl.schedules.indexWhere(
+      (e) => e['id'] == normalized['id'],
+    );
+    if (idx >= 0) {
+      debugPrint('Updating existing schedule at index $idx');
+      scheduleCtrl.schedules[idx] = normalized;
+    } else {
+      debugPrint('Adding new schedule to local cache');
+      scheduleCtrl.schedules.add(normalized);
+    }
+
+    // Update full list (calendar dots, future fetch reuse)
+    final idxAll = scheduleCtrl.allSchedules.indexWhere(
+      (e) => e['id'] == normalized['id'],
+    );
+    if (idxAll >= 0) {
+      scheduleCtrl.allSchedules[idxAll] = normalized;
+    } else {
+      scheduleCtrl.allSchedules.add(normalized);
+    }
+
+    int _cmp(Map<String, dynamic> a, Map<String, dynamic> b) {
+      final sa = a['start_time']?.toString();
+      final sb = b['start_time']?.toString();
+      return (sa ?? '').compareTo(sb ?? '');
+    }
+
+    scheduleCtrl.schedules.sort(_cmp);
+    scheduleCtrl.allSchedules.sort(_cmp);
+    scheduleCtrl.schedules.refresh();
+    scheduleCtrl.allSchedules.refresh();
+    debugPrint('Total schedules in cache: ${scheduleCtrl.schedules.length}');
+
+    // Trigger home update - ensure it's always called
+    _triggerHomeUpdate();
+  }
+
+  void _triggerHomeUpdate() {
+    try {
+      debugPrint('[AddScheduleController] Triggering home update...');
+      if (!Get.isRegistered<HomeController>()) {
+        debugPrint(
+          '[AddScheduleController] HomeController not registered, putting it now',
+        );
+        Get.put(HomeController(), permanent: false);
+      }
+      final homeCtrl = Get.find<HomeController>();
+      debugPrint(
+        '[AddScheduleController] Found HomeController, calling updateTodayTasksFromSchedule',
+      );
+      homeCtrl.updateTodayTasksFromSchedule();
+      debugPrint(
+        '[AddScheduleController] updateTodayTasksFromSchedule completed',
+      );
+    } catch (e) {
+      debugPrint('[AddScheduleController] Error triggering home update: $e');
+    }
+  }
 
   Future<void> createSchedule({
     required String title,
@@ -45,11 +164,17 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
-    // Format as local time string (YYYY-MM-DD HH:MM:SS) to preserve date
+    // Store as local ISO 8601 to keep exact picked time
+    // Avoid converting to UTC so the value remains identical
     String formatLocal(DateTime dt) {
-      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:00';
+      return dt.toIso8601String();
     }
+
+    debugPrint('[AddScheduleController] Creating schedule:');
+    debugPrint('[AddScheduleController]   Local startDateTime: $startDateTime');
+    debugPrint(
+      '[AddScheduleController]   Local ISO start_time: ${formatLocal(startDateTime)}',
+    );
 
     final payload = {
       'user_id': user.id,
@@ -65,7 +190,25 @@ class AddScheduleController extends GetxController {
 
     isSaving.value = true;
     try {
-      await _supabase.from('schedules').insert(payload);
+      final inserted = await _supabase
+          .from('schedules')
+          .insert(payload)
+          .select()
+          .maybeSingle();
+
+      if (inserted is Map<String, dynamic>) {
+        _upsertLocalSchedule(inserted);
+
+        // Schedule notification reminder if enabled
+        await _scheduleNotificationIfEnabled(inserted, startDateTime);
+      } else {
+        // fallback: refetch when no data returned
+        if (Get.isRegistered<ScheduleController>()) {
+          await Get.find<ScheduleController>().fetchSchedules();
+        }
+      }
+
+      _triggerHomeUpdate();
     } on PostgrestException catch (e) {
       throw Exception(e.message);
     } catch (_) {
@@ -108,11 +251,16 @@ class AddScheduleController extends GetxController {
       endTime.minute,
     );
 
-    // Format as local time string (YYYY-MM-DD HH:MM:SS) to preserve date
+    // Store as local ISO 8601 to keep exact picked time
     String formatLocal(DateTime dt) {
-      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:00';
+      return dt.toIso8601String();
     }
+
+    debugPrint('[AddScheduleController] Updating schedule:');
+    debugPrint('[AddScheduleController]   Local startDateTime: $startDateTime');
+    debugPrint(
+      '[AddScheduleController]   Local ISO start_time: ${formatLocal(startDateTime)}',
+    );
 
     final payload = {
       'title': title,
@@ -128,15 +276,121 @@ class AddScheduleController extends GetxController {
 
     isSaving.value = true;
     try {
-      await _supabase
+      final updated = await _supabase
           .from('schedules')
           .update(payload)
           .eq('id', id)
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .select()
+          .maybeSingle();
+
+      if (updated is Map<String, dynamic>) {
+        _upsertLocalSchedule(updated);
+
+        // Reschedule notification reminder if enabled
+        await _scheduleNotificationIfEnabled(updated, startDateTime);
+      } else {
+        if (Get.isRegistered<ScheduleController>()) {
+          await Get.find<ScheduleController>().fetchSchedules();
+        }
+      }
+
+      _triggerHomeUpdate();
     } on PostgrestException catch (e) {
       throw Exception(e.message);
     } finally {
       isSaving.value = false;
+    }
+  }
+
+  /// Schedule notification reminder based on user's notification settings
+  Future<void> _scheduleNotificationIfEnabled(
+    Map<String, dynamic> schedule,
+    DateTime startDateTime,
+  ) async {
+    try {
+      // Get user's notification settings from ProfileController or fetch from database
+      final user = _supabase.currentUser;
+      if (user == null) return;
+
+      // Fetch user's notification preferences (enable_notifications & reminder_minutes_before)
+      final userPrefs = await _supabase
+          .from('users')
+          .select('enable_notifications, reminder_minutes_before')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      // Jika tidak ada record userPrefs, default: aktifkan notifikasi dengan 15 menit sebelumnya
+      final enableNotifications = userPrefs == null
+          ? true
+          : (userPrefs['enable_notifications'] as bool? ?? true);
+
+      final reminderMinutesBefore = userPrefs == null
+          ? 15
+          : (userPrefs['reminder_minutes_before'] as int? ?? 15);
+
+      if (!enableNotifications) {
+        debugPrint(
+          '[AddScheduleController] Notifications disabled, skipping schedule',
+        );
+        return;
+      }
+
+      // Extract task ID and details
+      final taskId = schedule['id']?.toString() ?? '';
+      final title = schedule['title']?.toString() ?? 'Task';
+      final description = schedule['description']?.toString() ?? '';
+      final category = schedule['category']?.toString() ?? 'Umum';
+
+      // Get FCM token
+      final fcmToken = await _notificationService.getFcmToken();
+      if (fcmToken == null || fcmToken.isEmpty) {
+        debugPrint(
+          '[AddScheduleController] No FCM token available, skipping Firebase notification',
+        );
+        return;
+      }
+
+      // Skip if reminder time already passed
+      final reminderDt = startDateTime.subtract(
+        Duration(minutes: reminderMinutesBefore),
+      );
+      if (!reminderDt.isAfter(DateTime.now())) {
+        debugPrint(
+          '[AddScheduleController] Skipping $reminderMinutesBefore-min reminder for "$title" (past at ${reminderDt.toString()})',
+        );
+        return;
+      }
+
+      // Use Firebase backend for scheduling with user's preference
+      try {
+        final success = await _reminderService.scheduleFirebaseReminder(
+          userId: user.id,
+          deviceToken: fcmToken,
+          title: '⏰ $title',
+          body: '[$category] akan dimulai dalam $reminderMinutesBefore menit',
+          scheduledDateTime: startDateTime,
+          minutesBefore: reminderMinutesBefore,
+          category: category,
+        );
+
+        if (success) {
+          debugPrint(
+            '[AddScheduleController] ✓ Scheduled $reminderMinutesBefore-min Firebase reminder for "$title" at ${reminderDt.toString()}',
+          );
+        } else {
+          debugPrint(
+            '[AddScheduleController] ✗ Failed to schedule $reminderMinutesBefore-min Firebase reminder for "$title"',
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          '[AddScheduleController] Error scheduling Firebase notification: $e',
+        );
+      }
+    } catch (e) {
+      debugPrint('[AddScheduleController] Error scheduling notification: $e');
+      // Don't throw - notification failure shouldn't block schedule creation
     }
   }
 }

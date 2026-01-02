@@ -2,7 +2,6 @@ import 'package:get/get.dart';
 
 import '../../controllers/home/home_controller.dart';
 import '../../controllers/profile/profile_controller.dart';
-import '../../../data/services/supabase_service.dart';
 
 class HomeBinding extends Bindings {
   @override

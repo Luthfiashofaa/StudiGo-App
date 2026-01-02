@@ -1,12 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthRetryableFetchException;
 
 import '../../../data/services/auth_persistence_service.dart';
 import '../../../data/services/supabase_service.dart';
 import '../../bindings/auth/login_binding.dart';
 import '../../views/auth/login_view.dart';
+import '../home/home_controller.dart';
 
 class ScheduleController extends GetxController {
   ScheduleController({SupabaseService? supabase})
@@ -15,6 +15,9 @@ class ScheduleController extends GetxController {
   final SupabaseService _supabase;
 
   final RxBool isLoading = false.obs;
+  // Full list of schedules for indicator dots
+  final RxList<Map<String, dynamic>> allSchedules =
+      <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> schedules = <Map<String, dynamic>>[].obs;
 
   Future<void> _handleExpiredSession(String reason) async {
@@ -47,26 +50,45 @@ class ScheduleController extends GetxController {
           );
 
       final list = List<Map<String, dynamic>>.from(data);
+      allSchedules.assignAll(list);
 
       if (date != null) {
-        final start = DateTime(date.year, date.month, date.day);
-        final end = start.add(const Duration(days: 1));
         schedules.assignAll(
           list.where((item) {
-            final raw = item['start_time']?.toString();
-            // Parse as local time to avoid UTC shift
-            DateTime? dt;
-            if (raw != null) {
-              // If stored as "YYYY-MM-DD HH:MM:SS", parse directly without UTC conversion
+            final bool repeats = item['repeat_daily'] == true;
+            // Prefer explicit date column to avoid timezone shifts
+            final rawDate = item['date']?.toString();
+            final rawStart = item['start_time']?.toString();
+
+            DateTime? dateValue;
+            if (rawDate != null) {
               try {
-                dt = DateTime.parse(raw.replaceAll(' ', 'T'));
+                dateValue = DateTime.parse(rawDate.replaceAll(' ', 'T'));
               } catch (_) {
-                dt = DateTime.tryParse(raw);
+                dateValue = DateTime.tryParse(rawDate);
               }
             }
-            if (dt == null) return false;
-            // Compare only date parts to avoid timezone issues
-            final itemDate = DateTime(dt.year, dt.month, dt.day);
+            // Fallback to start_time if date column missing
+            if (dateValue == null && rawStart != null) {
+              try {
+                dateValue = DateTime.parse(rawStart.replaceAll(' ', 'T'));
+              } catch (_) {
+                dateValue = DateTime.tryParse(rawStart);
+              }
+            }
+
+            if (dateValue == null) return false;
+            final itemDate = DateTime(
+              dateValue.year,
+              dateValue.month,
+              dateValue.day,
+            );
+
+            if (repeats) {
+              // Repeat only from its start date forward (inclusive)
+              return !date.isBefore(itemDate);
+            }
+
             return itemDate.year == date.year &&
                 itemDate.month == date.month &&
                 itemDate.day == date.day;
@@ -102,11 +124,31 @@ class ScheduleController extends GetxController {
     final user = _supabase.currentUser;
     if (user == null) throw Exception('User belum login.');
 
+    // Note: Firebase reminders are stored in backend database
+    // They will naturally expire when their reminder_at time passes
+    // For production, consider adding a backend endpoint to cancel reminders by schedule ID
+    // For now, we'll just delete the schedule and let backend reminders expire
+    debugPrint(
+      '[ScheduleController] Deleting schedule $id (Firebase reminders will expire naturally)',
+    );
+
     await _supabase
         .from('schedules')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id);
     schedules.removeWhere((item) => item['id'] == id);
+    allSchedules.removeWhere((item) => item['id'] == id);
+    debugPrint('Schedule $id deleted from local cache');
+
+    // Trigger home update after delete so today's tasks refresh
+    if (Get.isRegistered<HomeController>()) {
+      try {
+        Get.find<HomeController>().updateTodayTasksFromSchedule();
+        debugPrint('Home controller updated after schedule delete');
+      } catch (e) {
+        debugPrint('Warning: Could not update home after delete: $e');
+      }
+    }
   }
 }

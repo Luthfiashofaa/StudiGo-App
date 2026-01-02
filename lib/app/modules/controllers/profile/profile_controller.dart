@@ -6,10 +6,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../data/services/supabase_service.dart';
 import '../../../data/services/auth_persistence_service.dart';
+import '../../../data/services/notification_service.dart';
+import '../../../data/services/reminder_service.dart';
+import '../../../data/services/supabase_service.dart';
 import '../../bindings/auth/login_binding.dart';
 import '../../views/auth/login_view.dart';
+import '../schedule/schedule_controller.dart';
 
 class ProfileController extends GetxController {
   final emailController = TextEditingController();
@@ -25,8 +28,14 @@ class ProfileController extends GetxController {
   String? avatarUrl;
   String? _profileId;
 
+  // Notification reminder preferences
+  final RxBool enableNotifications = true.obs;
+  final RxInt reminderMinutesBefore = 15.obs;
+
   // Lazy getter to avoid null during initialization
   late final SupabaseService _supabase = Get.find<SupabaseService>();
+  final NotificationService _notificationService = NotificationService();
+  final ReminderService _reminderService = ReminderService();
 
   final RxBool isSaving = false.obs;
   final RxBool isLoadingProfile = false.obs;
@@ -95,6 +104,12 @@ class ProfileController extends GetxController {
     if ((_original['dob'] ?? '') != dob) changed = true;
     if ((_original['country_code'] ?? '') != countryC) changed = true;
     if ((_original['country_dial_code'] ?? '') != countryD) changed = true;
+    if ((_original['enable_notifications'] ?? true) !=
+        enableNotifications.value)
+      changed = true;
+    if ((_original['reminder_minutes_before'] ?? 15) !=
+        reminderMinutesBefore.value)
+      changed = true;
 
     // avatarPath indicates a new local image that hasn't been uploaded yet
     if (avatarPath != null) changed = true;
@@ -114,6 +129,162 @@ class ProfileController extends GetxController {
     countryDialCode = dialCode;
     update();
     _checkChanges();
+  }
+
+  void setEnableNotifications(bool value) {
+    enableNotifications.value = value;
+    _checkChanges();
+    // Reschedule all notifications when setting changes
+    _rescheduleAllNotifications();
+  }
+
+  void setReminderMinutesBefore(int minutes) {
+    reminderMinutesBefore.value = minutes;
+    _checkChanges();
+    // Reschedule all notifications when setting changes
+    _rescheduleAllNotifications();
+  }
+
+  /// Reschedule all active task notifications based on current settings
+  Future<void> _rescheduleAllNotifications() async {
+    try {
+      // Get all schedules from ScheduleController
+      if (!Get.isRegistered<ScheduleController>()) {
+        debugPrint(
+          '[ProfileController] ScheduleController not registered, skipping reschedule',
+        );
+        return;
+      }
+
+      final scheduleCtrl = Get.find<ScheduleController>();
+      final schedules = scheduleCtrl.schedules;
+
+      if (schedules.isEmpty) {
+        debugPrint('[ProfileController] No schedules to reschedule');
+        return;
+      }
+
+      // Note: Cannot cancel Firebase reminders from client easily
+      // In production, consider adding a "cancel all" backend endpoint
+
+      // Reschedule only if notifications are enabled
+      if (!enableNotifications.value) {
+        debugPrint(
+          '[ProfileController] Notifications disabled, skipping reschedule',
+        );
+        return;
+      }
+
+      final user = _supabase.currentUser;
+      if (user == null) return;
+
+      // Get FCM token
+      final fcmToken = await _notificationService.getFcmToken();
+      if (fcmToken == null || fcmToken.isEmpty) {
+        debugPrint(
+          '[ProfileController] No FCM token available, skipping reschedule',
+        );
+        return;
+      }
+
+      debugPrint(
+        '[ProfileController] Rescheduling ${schedules.length} notifications with Firebase...',
+      );
+
+      // Reschedule each active schedule via Firebase
+      for (final schedule in schedules) {
+        try {
+          final taskId = schedule['id']?.toString() ?? '';
+          final title = schedule['title']?.toString() ?? 'Task';
+          final description = schedule['description']?.toString() ?? '';
+          final startTimeStr = schedule['start_time']?.toString();
+
+          if (startTimeStr == null) continue;
+
+          // Parse start time (stored as local ISO 8601)
+          DateTime? startDateTime;
+          try {
+            startDateTime = DateTime.parse(startTimeStr);
+          } catch (_) {
+            continue;
+          }
+
+          // Schedule reminders for 5, 10, 15 minutes before
+          const reminderMinutes = [5, 10, 15];
+
+          for (final minutes in reminderMinutes) {
+            final reminderDt = startDateTime.subtract(
+              Duration(minutes: minutes),
+            );
+
+            // Skip if reminder time already passed
+            if (!reminderDt.isAfter(DateTime.now())) {
+              continue;
+            }
+
+            final success = await _reminderService.scheduleFirebaseReminder(
+              userId: user.id,
+              deviceToken: fcmToken,
+              title: '$minutes-min reminder: $title',
+              body: description.isEmpty ? 'Task starts soon!' : description,
+              scheduledDateTime: startDateTime,
+              minutesBefore: minutes,
+            );
+
+            if (success) {
+              debugPrint(
+                '[ProfileController] ✓ Rescheduled $minutes-min Firebase reminder for: $title',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('[ProfileController] Error rescheduling notification: $e');
+        }
+      }
+
+      debugPrint(
+        '[ProfileController] All ${schedules.length} notifications rescheduled with Firebase',
+      );
+    } catch (e) {
+      debugPrint(
+        '[ProfileController] Error in _rescheduleAllNotifications: $e',
+      );
+    }
+  }
+
+  /// Debug: Show test notification immediately
+  Future<void> debugTestNotification() async {
+    try {
+      // Check permission status
+      final hasPermission = await _notificationService
+          .areNotificationsEnabled();
+      debugPrint(
+        '[ProfileController] Notification permission granted: $hasPermission',
+      );
+
+      if (!hasPermission) {
+        debugPrint('[ProfileController] Requesting notification permission...');
+        final granted = await _notificationService.requestPermissions();
+        if (!granted) {
+          debugPrint('[ProfileController] Permission denied!');
+          return;
+        }
+      }
+
+      await _notificationService.showTestNotification();
+      debugPrint('[ProfileController] Test notification sent');
+
+      // Check pending notifications count
+      final pending = await _notificationService.getPendingNotifications();
+      debugPrint(
+        '[ProfileController] Pending notifications: ${pending.length}',
+      );
+      for (final notif in pending) {
+        debugPrint('  - ID: ${notif.id}, Title: ${notif.title}');
+      }
+    } catch (e) {
+      debugPrint('[ProfileController] Error sending test notification: $e');
+    }
   }
 
   String _formatDate(DateTime d) =>
@@ -222,6 +393,13 @@ class ProfileController extends GetxController {
         _original['country_code'] = countryCode;
         _original['country_dial_code'] = countryDialCode;
         _original['avatar_url'] = avatarUrl ?? '';
+        _original['enable_notifications'] = enableNotifications.value;
+        _original['reminder_minutes_before'] = reminderMinutesBefore.value;
+
+        // Load notification preferences from database
+        enableNotifications.value = u['enable_notifications'] as bool? ?? true;
+        reminderMinutesBefore.value =
+            u['reminder_minutes_before'] as int? ?? 15;
 
         hasChanges.value = false;
         update();
@@ -334,6 +512,7 @@ class ProfileController extends GetxController {
     final user = _supabase.currentUser;
     if (user == null) {
       debugPrint('_uploadAvatarIfNeeded: user is null, cannot upload');
+      Get.snackbar('Error', 'User not logged in');
       return null;
     }
 
@@ -346,28 +525,86 @@ class ProfileController extends GetxController {
 
       if (!exists) {
         debugPrint('_uploadAvatarIfNeeded: File does not exist at $avatarPath');
+        Get.snackbar('Error', 'Image file not found');
         return avatarUrl;
       }
 
-      final ext = avatarPath!.split('.').last;
-      final path = 'avatars/${user.id}.$ext';
-      debugPrint('_uploadAvatarIfNeeded: Uploading to $path');
+      // Get file extension and detect content type
+      final ext = avatarPath!.split('.').last.toLowerCase();
+      String contentType = 'image/jpeg'; // default
+      switch (ext) {
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case 'gif':
+          contentType = 'image/gif';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+      }
 
-      await _supabase.storage
-          .from('avatars')
-          .upload(path, file, fileOptions: const FileOptions(upsert: true));
-
-      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(path);
+      // Use unique filename with timestamp to avoid caching issues
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final path = '${user.id}/$timestamp.$ext';
       debugPrint(
-        '_uploadAvatarIfNeeded: Upload successful, publicUrl = $publicUrl',
+        '_uploadAvatarIfNeeded: Uploading to bucket=avatars, path=$path with contentType=$contentType',
       );
 
-      avatarUrl = publicUrl?.toString();
+      // First, try to remove old avatar if exists
+      try {
+        final existingFiles = await _supabase.storage
+            .from('avatars')
+            .list(path: user.id);
+        for (final file in existingFiles) {
+          await _supabase.storage.from('avatars').remove([
+            '${user.id}/${file.name}',
+          ]);
+        }
+      } catch (e) {
+        debugPrint('Could not remove old avatars: $e');
+      }
+
+      // Upload with proper content type
+      final uploadPath = await _supabase.storage
+          .from('avatars')
+          .upload(
+            path,
+            file,
+            fileOptions: FileOptions(contentType: contentType, upsert: false),
+          );
+
+      // Get public URL with cache-busting parameter
+      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(path);
+      final urlWithCacheBust = '$publicUrl?t=$timestamp';
+
+      debugPrint(
+        '_uploadAvatarIfNeeded: Upload successful, publicUrl = $urlWithCacheBust',
+      );
+
+      avatarUrl = urlWithCacheBust;
       _original['avatar_url'] = avatarUrl ?? '';
       avatarPath = null; // Clear the path after upload
       return avatarUrl;
+    } on StorageException catch (e) {
+      debugPrint('_uploadAvatarIfNeeded: StorageException - ${e.message}');
+      Get.snackbar(
+        'Upload Failed',
+        'Storage error: ${e.message}. Please check if avatars bucket exists and has proper permissions.',
+        duration: const Duration(seconds: 5),
+      );
+      return avatarUrl;
     } catch (e) {
       debugPrint('_uploadAvatarIfNeeded: Error - $e');
+      Get.snackbar(
+        'Upload Failed',
+        'Failed to upload avatar: ${e.toString()}',
+        duration: const Duration(seconds: 4),
+      );
       return avatarUrl;
     }
   }
@@ -397,6 +634,8 @@ class ProfileController extends GetxController {
         'birthdate': birthDate?.toIso8601String(),
         'phone_number': phoneController.text.trim(),
         'photo_url': uploadedAvatar,
+        'enable_notifications': enableNotifications.value,
+        'reminder_minutes_before': reminderMinutesBefore.value,
         'updated_at': DateTime.now().toIso8601String(),
       }..removeWhere((k, v) => v == null);
 

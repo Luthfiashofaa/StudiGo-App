@@ -5,6 +5,7 @@ import 'package:studigo/app/modules/views/home/home_view.dart';
 import 'package:studigo/app/modules/views/auth/auth_callback_view.dart';
 import 'package:studigo/app/modules/views/schedule/add_schedule_view.dart';
 import 'package:studigo/app/modules/views/profile/profile_view.dart';
+import 'package:studigo/app/routes/test_notification_screen.dart';
 
 import 'package:studigo/app/modules/bindings/auth/login_binding.dart';
 import 'package:studigo/app/modules/bindings/home/home_binding.dart';
@@ -25,11 +26,7 @@ class AppPages {
       page: () => const LoginView(),
       binding: LoginBinding(),
     ),
-    GetPage(
-      name: _Paths.home,
-      page: () => const HomeView(),
-      binding: HomeBinding(),
-    ),
+    GetPage(name: _Paths.home, page: () => HomeView(), binding: HomeBinding()),
     GetPage(
       name: _Paths.addschedule,
       page: () => const AddScheduleView(),
@@ -39,6 +36,10 @@ class AppPages {
       name: _Paths.profile,
       page: () => const ProfileView(),
       binding: ProfileBinding(),
+    ),
+    GetPage(
+      name: _Paths.testNotification,
+      page: () => const TestNotificationScreen(),
     ),
 
     GetPage(name: '/auth-callback', page: () => const AuthCallbackView()),

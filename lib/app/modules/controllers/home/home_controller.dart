@@ -1,12 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import '../../../data/services/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
+import '../../../data/services/supabase_service.dart';
+import '../schedule/schedule_controller.dart';
+import '../streak/streak_helper.dart';
+import '../streak/streak_controller.dart';
 
 class HomeController extends GetxController {
   final _supabaseService = Get.find<SupabaseService>();
+  late final ScheduleController _scheduleController;
+  SharedPreferences? _prefs;
 
   // Observable untuk menyimpan nama user
   final userName = 'User'.obs;
+  final avatarUrl = ''.obs;
   final isLoadingUser = false.obs;
 
   // Observable untuk tracking tugas hari ini
@@ -27,6 +37,116 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _initScheduleListener();
+    _loadUserData();
+    _loadTodayTasks();
+  }
+
+  void _initScheduleListener() {
+    debugPrint('[HomeController] Initializing schedule listener...');
+    if (Get.isRegistered<ScheduleController>()) {
+      debugPrint('[HomeController] ScheduleController already registered');
+      _scheduleController = Get.find<ScheduleController>();
+    } else {
+      debugPrint('[HomeController] Putting new ScheduleController');
+      _scheduleController = Get.put(ScheduleController());
+    }
+    debugPrint('[HomeController] Setting up ever() listener on schedules...');
+    ever(_scheduleController.schedules, (_) {
+      debugPrint('[HomeController] Schedules changed! Updating today tasks...');
+      updateTodayTasksFromSchedule();
+    });
+    debugPrint('[HomeController] Schedule listener initialized successfully');
+  }
+
+  Future<void> updateTodayTasksFromSchedule() async {
+    debugPrint('[HomeController] updateTodayTasksFromSchedule called');
+    _prefs ??= await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayYear = now.year;
+    final todayMonth = now.month;
+    final todayDay = now.day;
+    final today = DateTime(todayYear, todayMonth, todayDay);
+
+    debugPrint(
+      '[HomeController] Today date: $todayYear-${todayMonth.toString().padLeft(2, '0')}-${todayDay.toString().padLeft(2, '0')}',
+    );
+    debugPrint(
+      '[HomeController] Total schedules in ScheduleController: ${_scheduleController.allSchedules.length}',
+    );
+
+    DateTime? parseLocal(dynamic raw) {
+      // Timestamps disimpan sebagai lokal ISO (tanpa konversi tz)
+      if (raw is DateTime) return raw;
+      if (raw is String) {
+        try {
+          return DateTime.parse(raw);
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    // DEBUG: Log all schedules
+    for (int i = 0; i < _scheduleController.allSchedules.length; i++) {
+      final item = _scheduleController.allSchedules[i];
+      debugPrint(
+        '[HomeController] Schedule[$i]: title=${item['title']}, start_time_raw=${item['start_time']}, repeat_daily=${item['repeat_daily']}',
+      );
+      final dt = parseLocal(item['start_time']);
+      if (dt != null) {
+        debugPrint(
+          '[HomeController]   -> Parsed LOCAL: ${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour}:${dt.minute}',
+        );
+      } else {
+        debugPrint('[HomeController]   -> Parse FAILED');
+      }
+    }
+
+    final todaySchedules = _scheduleController.allSchedules.where((item) {
+      final dt = parseLocal(item['start_time']);
+      if (dt == null) {
+        return false;
+      }
+
+      // Check if it's a recurring task
+      final isRepeating = item['repeat_daily'] == true;
+      final scheduleDate = DateTime(dt.year, dt.month, dt.day);
+
+      if (isRepeating) {
+        // Show repeating tasks if today is on or after the start date
+        return !today.isBefore(scheduleDate);
+      }
+
+      // For non-repeating tasks, show only if date matches exactly
+      return scheduleDate == today;
+    }).toList();
+
+    debugPrint(
+      '[HomeController] updateTodayTasksFromSchedule: Found ${todaySchedules.length} tasks for today',
+    );
+    if (todaySchedules.isNotEmpty) {
+      debugPrint(
+        '[HomeController] First task: ${todaySchedules.first['title']} - start_time: ${todaySchedules.first['start_time']}',
+      );
+    }
+
+    todayTasks.assignAll(todaySchedules);
+
+    // Restore completion after list refreshed (e.g., when schedules change)
+    _restoreTodayCompletion();
+
+    completedTasksCount.value = todayTasks
+        .where((task) => task['isCompleted'] == true)
+        .length;
+
+    // Update daily progress when schedules change
+    _updateDailyProgress();
+
+    debugPrint(
+      '[HomeController] todayTasks updated, count: ${todayTasks.length}',
+    );
   }
 
   @override
@@ -39,11 +159,6 @@ class HomeController extends GetxController {
     });
   }
 
-  @override
-  void onClose() {
-    super.onClose();
-  }
-
   // Mengambil data user dari Supabase
   Future<void> _loadUserData() async {
     try {
@@ -54,7 +169,7 @@ class HomeController extends GetxController {
         // Ambil data user dari tabel users
         final response = await _supabaseService.client
             .from('users')
-            .select('firstname, lastname, name')
+            .select('firstname, lastname, name, photo_url')
             .eq('id', user.id)
             .single();
 
@@ -66,9 +181,12 @@ class HomeController extends GetxController {
         } else {
           userName.value = user.email?.split('@').first ?? 'User';
         }
+
+        // Set avatar URL from database
+        avatarUrl.value = response['photo_url']?.toString() ?? '';
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      debugPrint('Error loading user data: $e');
       // Fallback ke email jika ada error
       final user = _supabaseService.currentUser;
       if (user?.email != null) {
@@ -85,7 +203,7 @@ class HomeController extends GetxController {
       // Buka Gemini AI di browser
       await openGeminiInBrowser();
     } catch (e) {
-      print('Error: $e');
+      debugPrint('Error opening Gemini AI: $e');
       openGeminiInBrowser();
     }
   }
@@ -109,48 +227,53 @@ class HomeController extends GetxController {
   // Mengambil tugas hari ini dari Supabase
   Future<void> _loadTodayTasks() async {
     try {
+      _prefs ??= await SharedPreferences.getInstance();
       final user = _supabaseService.currentUser;
       if (user == null) {
-        print('User not logged in, cannot load tasks');
+        debugPrint('User not logged in, cannot load tasks');
         return;
       }
 
-      // Dapatkan tanggal hari ini (tanpa waktu)
+      // ===== RECONCILE STREAK FOR NEW DAY =====
+      // Check if it's a new day and reconcile streak accordingly
       final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
+      final todayIso =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
-      print(
-        'Loading tasks for today: ${startOfDay.toString()} to ${endOfDay.toString()}',
-      );
-
-      // Query schedules untuk hari ini
-      final data = await _supabaseService.client
-          .from('schedules')
-          .select('id, title, start_time, end_time, description, category')
-          .eq('user_id', user.id)
-          .gte('start_time', startOfDay.toIso8601String())
-          .lt('start_time', endOfDay.toIso8601String())
-          .order('start_time', ascending: true);
-
-      print('Received ${(data as List).length} schedules from database');
-
-      final list = List<Map<String, dynamic>>.from(data);
-
-      // Tambahkan properti isCompleted untuk setiap task (hanya di memori, tidak persist)
-      for (var task in list) {
-        task['isCompleted'] = false; // Default semua belum selesai
-        task['title'] = task['title'] ?? 'Tugas'; // Fallback jika title null
+      if (Get.isRegistered<StreakController>()) {
+        try {
+          final streakController = Get.find<StreakController>();
+          await streakController.reconcileForToday(todayIso);
+          debugPrint(
+            '[HomeController] Streak reconciliation completed for $todayIso',
+          );
+        } catch (e) {
+          debugPrint('[HomeController] Error during streak reconciliation: $e');
+        }
       }
 
-      todayTasks.assignAll(list);
+      // Load schedules dari ScheduleController jika belum loaded
+      if (_scheduleController.schedules.isEmpty) {
+        await _scheduleController.fetchSchedules();
+      }
+
+      // Update today tasks dari schedule controller
+      updateTodayTasksFromSchedule();
+
+      // Restore completion status for today from local cache
+      _restoreTodayCompletion();
 
       // Reset hitungan tugas yang sudah selesai
-      completedTasksCount.value = 0;
+      completedTasksCount.value = todayTasks
+          .where((task) => task['isCompleted'] == true)
+          .length;
 
-      print('Loaded ${todayTasks.length} tasks for today');
+      // Update daily progress on load
+      _updateDailyProgress();
+
+      debugPrint('Loaded ${todayTasks.length} tasks for today');
     } catch (e) {
-      print('Error loading today tasks: $e');
+      debugPrint('Error loading today tasks: $e');
       // Jika error, tetap kosongkan tasks
       todayTasks.clear();
       completedTasksCount.value = 0;
@@ -172,14 +295,90 @@ class HomeController extends GetxController {
           .where((task) => task['isCompleted'] == true)
           .length;
 
-      print(
+      _persistTodayCompletion();
+
+      // Auto-update daily progress untuk streak
+      _updateDailyProgress();
+
+      debugPrint(
         'Task ${task['title']} marked as ${newStatus ? "completed" : "incomplete"}',
       );
     }
   }
 
+  // Update daily progress based on completed tasks
+  void _updateDailyProgress() {
+    final totalTasks = todayTasks.length;
+    final completedTasks = completedTasksCount.value;
+    final progressPercentage = totalTasks > 0
+        ? (completedTasks / totalTasks) * 100.0
+        : 0.0;
+
+    // Update streak progress with completed task count
+    // This syncs to database via StreakController._syncToDatabase()
+    StreakHelper.setProgress(
+      progressPercentage,
+      completedTaskCount: completedTasks,
+    );
+
+    debugPrint(
+      '[HomeController] Daily progress updated: ${progressPercentage.toStringAsFixed(1)}% ($completedTasks/$totalTasks tasks)',
+    );
+  }
+
   // Refresh semua data
   Future<void> refreshData() async {
     await Future.wait([_loadUserData(), _loadTodayTasks()]);
+  }
+
+  String _todayKey() {
+    final now = DateTime.now();
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  void _persistTodayCompletion() {
+    if (_prefs == null) return;
+    final key = 'home_tasks_status_${_todayKey()}';
+    final statuses = todayTasks
+        .map(
+          (t) => {
+            'title': t['title'],
+            'isCompleted': t['isCompleted'] ?? false,
+          },
+        )
+        .toList();
+    _prefs!.setString(key, jsonEncode(statuses));
+  }
+
+  void _restoreTodayCompletion() {
+    if (_prefs == null) return;
+    final key = 'home_tasks_status_${_todayKey()}';
+    final raw = _prefs!.getString(key);
+    if (raw == null) return;
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      final statusMap = <String, bool>{};
+      for (final item in decoded) {
+        if (item is Map<String, dynamic>) {
+          final title = item['title']?.toString();
+          final val = item['isCompleted'] == true;
+          if (title != null) statusMap[title] = val;
+        }
+      }
+
+      for (var i = 0; i < todayTasks.length; i++) {
+        final t = todayTasks[i];
+        final title = t['title']?.toString();
+        if (title != null && statusMap.containsKey(title)) {
+          todayTasks[i]['isCompleted'] = statusMap[title];
+        }
+      }
+      todayTasks.refresh();
+    } catch (_) {
+      // ignore parsing errors; fallback to unchecked tasks
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'daily_mission_view.dart';
@@ -32,26 +33,65 @@ class _StreakViewState extends State<StreakView> {
     // Setup initial scroll position after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoScrollToCurrentDay();
+      // Fetch completion status when view is opened
+      _initializeStreakData();
     });
+  }
+
+  /// Initialize streak data by fetching from database
+  Future<void> _initializeStreakData() async {
+    debugPrint('[StreakView] Initializing streak data...');
+
+    // Calculate today's date key
+    final today = DateTime.now();
+    final todayIso =
+        '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+    // Reconcile for today (this will fetch dayCompletionStatus)
+    await controller.reconcileForToday(todayIso);
+
+    debugPrint('[StreakView] Streak data initialized');
   }
 
   void _autoScrollToCurrentDay() {
     if (!controller.hasAutoScrolled && controller.scrollController.hasClients) {
       const segmentHeight = 320.0;
-      const int baseFutureDays = 100;
-      final totalDays = baseFutureDays + controller.streakCount.value;
+
+      // Calculate current day index based on firstDayDate
+      // Normalize dates to ignore time component
+      final firstDay = controller.firstDayDate.value;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      final firstDayNormalized = firstDay != null
+          ? DateTime(firstDay.year, firstDay.month, firstDay.day)
+          : null;
+
+      int currentDayIndex;
+      int totalDays;
+
+      if (firstDayNormalized != null) {
+        // Calculate days from Day 1 to today
+        final daysSinceStart = today.difference(firstDayNormalized).inDays + 1;
+        totalDays = daysSinceStart;
+        currentDayIndex = daysSinceStart - 1; // Convert to 0-based index
+      } else {
+        // Fallback to streak-based calculation
+        const int baseFutureDays = 100;
+        totalDays = baseFutureDays + controller.streakCount.value;
+        currentDayIndex = (controller.streakCount.value - 1).clamp(
+          0,
+          totalDays - 1,
+        );
+      }
 
       final viewport = MediaQuery.of(context).size.height;
-      final currentIndex = (controller.streakCount.value - 1).clamp(
-        0,
-        totalDays - 1,
-      );
       final contentHeight = (totalDays * segmentHeight).clamp(
         segmentHeight * 1.5,
         200000.0,
       );
       // compute the cy in bottom-origin coordinate
-      final cy = contentHeight - (currentIndex * segmentHeight + 150.0);
+      final cy = contentHeight - (currentDayIndex * segmentHeight + 150.0);
       final target = (cy - viewport / 2).clamp(
         0.0,
         controller.scrollController.position.maxScrollExtent,
@@ -91,10 +131,31 @@ class _StreakViewState extends State<StreakView> {
       body: SafeArea(
         child: Obx(() {
           const segmentHeight = 320.0;
-          // base number of future days after Day 1
-          const int baseFutureDays = 100;
-          // compute total days as base + current streak day
-          final totalDays = baseFutureDays + ctrl.streakCount.value;
+
+          // Calculate total days from Day 1 to today + future days
+          // Normalize dates to remove time component (only use date, ignore time)
+          final firstDay = ctrl.firstDayDate.value;
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+
+          // Normalize firstDay to remove time as well
+          final firstDayNormalized = firstDay != null
+              ? DateTime(firstDay.year, firstDay.month, firstDay.day)
+              : null;
+
+          // If we have firstDay, calculate days from Day 1 to today + future days
+          // Otherwise, default to showing based on streak
+          final int totalDays;
+          const int futureDaysToShow = 100;
+          if (firstDayNormalized != null) {
+            final daysSinceStart =
+                today.difference(firstDayNormalized).inDays +
+                1; // +1 to include today
+            totalDays = daysSinceStart + futureDaysToShow;
+          } else {
+            // Fallback: show based on streak count + future days
+            totalDays = ctrl.streakCount.value + futureDaysToShow;
+          }
 
           final contentHeight = (totalDays * segmentHeight).clamp(
             segmentHeight * 1.5,
@@ -116,9 +177,14 @@ class _StreakViewState extends State<StreakView> {
                         child: CustomPaint(
                           painter: _WavyPathPainter(
                             days: totalDays,
-                            currentDay: ctrl.streakCount.value,
+                            currentDay: firstDayNormalized != null
+                                ? today.difference(firstDayNormalized).inDays +
+                                      1
+                                : ctrl.streakCount.value,
                             houses: ctrl.houses.toList(),
                             selectedHouseIndex: ctrl.selectedHouseIndex.value,
+                            dayCompletionStatus: ctrl.dayCompletionStatus,
+                            firstDayDate: firstDayNormalized,
                           ),
                         ),
                       ),
@@ -127,7 +193,6 @@ class _StreakViewState extends State<StreakView> {
                 ),
               ),
 
-              // Fixed header (top-left) - Streak badge with flame icon
               // Fixed header (top-left) - Streak badge with flame icon
               Positioned(
                 left: -10,
@@ -200,7 +265,7 @@ class _StreakViewState extends State<StreakView> {
                 ),
               ),
 
-              // Show/hide scroll-to-top button based on scroll position
+              // Show/hide scroll-to-today button based on scroll position
               if (showScrollToTop)
                 Positioned(
                   top: 16,
@@ -209,8 +274,51 @@ class _StreakViewState extends State<StreakView> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        ctrl.scrollController.animateTo(
+                        // Scroll to today position
+                        const segmentHeight = 320.0;
+                        final firstDay = ctrl.firstDayDate.value;
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+
+                        int currentDayIndex;
+                        int totalDays;
+
+                        final firstDayNormalized = firstDay != null
+                            ? DateTime(
+                                firstDay.year,
+                                firstDay.month,
+                                firstDay.day,
+                              )
+                            : null;
+
+                        if (firstDayNormalized != null) {
+                          final daysSinceStart =
+                              today.difference(firstDayNormalized).inDays + 1;
+                          totalDays = daysSinceStart + 100;
+                          currentDayIndex = daysSinceStart - 1;
+                        } else {
+                          totalDays = ctrl.streakCount.value + 100;
+                          currentDayIndex = (ctrl.streakCount.value - 1).clamp(
+                            0,
+                            totalDays - 1,
+                          );
+                        }
+
+                        final viewport = MediaQuery.of(context).size.height;
+                        final contentHeight = (totalDays * segmentHeight).clamp(
+                          segmentHeight * 1.5,
+                          200000.0,
+                        );
+                        final cy =
+                            contentHeight -
+                            (currentDayIndex * segmentHeight + 150.0);
+                        final target = (cy - viewport / 2).clamp(
+                          0.0,
                           ctrl.scrollController.position.maxScrollExtent,
+                        );
+
+                        ctrl.scrollController.animateTo(
+                          target,
                           duration: const Duration(milliseconds: 800),
                           curve: Curves.easeInOut,
                         );
@@ -234,93 +342,34 @@ class _StreakViewState extends State<StreakView> {
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Icon(
                               Icons.arrow_downward,
                               color: Color(0xFF47CF5B),
                               size: 20,
                             ),
                             SizedBox(width: 6),
-                            Text(
-                              'Day 1',
-                              style: TextStyle(
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                              ),
-                            ),
+                            Obx(() {
+                              final firstDay = ctrl.firstDayDate.value;
+                              final today = DateTime.now();
+                              final currentDay = firstDay != null
+                                  ? today.difference(firstDay).inDays + 1
+                                  : ctrl.streakCount.value;
+                              return Text(
+                                'Day $currentDay',
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              );
+                            }),
                           ],
                         ),
                       ),
                     ),
                   ),
                 ),
-
-              Positioned(
-                right: 24,
-                bottom: 25,
-                child: GestureDetector(
-                  onTap: () {
-                    // Navigate to Daily Mission screen when trophy is tapped
-                    Get.to(() => const DailyMissionView());
-                  },
-                  child: SizedBox(
-                    width: 110,
-                    height: 110,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // subtle glow
-                        Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                        ),
-                        // outer gradient ring
-                        Container(
-                          width: 90,
-                          height: 90,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFFFFD93D), Color(0xFFFFC700)],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.16),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // inner ring
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFF0AD28),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.emoji_events,
-                              color: Colors.black87,
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             ],
           );
         }),
@@ -334,12 +383,16 @@ class _WavyPathPainter extends CustomPainter {
   final int currentDay;
   final List<String> houses;
   final int selectedHouseIndex;
+  final Map<String, bool> dayCompletionStatus;
+  final DateTime? firstDayDate;
 
   _WavyPathPainter({
     this.days = 20,
     this.currentDay = 1,
     this.houses = const <String>[],
     this.selectedHouseIndex = -1,
+    this.dayCompletionStatus = const <String, bool>{},
+    this.firstDayDate,
   });
 
   @override
@@ -353,49 +406,38 @@ class _WavyPathPainter extends CustomPainter {
     final w = size.width;
     final segmentH = 320.0;
 
-    // (Decorations will be drawn after we compute xForY so they can follow the path)
-
     // Helper: compute x position for a given y using a sine-based segment shape
-    // Now compute positions with origin at bottom so the visual flow goes
-    // from bottom -> top. y is measured from the top (canvas coordinate),
-    // so convert to yFromBottom.
     double xForY(double y) {
       final yFromBottom = (size.height - y).clamp(0.0, size.height);
       final seg = (yFromBottom / segmentH).floor();
       final local = ((yFromBottom - seg * segmentH) / segmentH).clamp(0.0, 1.0);
-      final angle = local * math.pi; // 0..pi per segment -> half sine wave
-      final amp = w * 0.32; // amplitude controls how far path swings
+      final angle = local * math.pi;
+      final amp = w * 0.32;
       final center = w * 0.5;
       final val = math.sin(angle);
-      // alternate direction per segment starting from bottom
       return (seg % 2 == 0) ? center + amp * val : center - amp * val;
     }
 
-    // (Decorations will be drawn after we compute and draw the path so they
-    // can be layered above the road but still below the nodes.)
-
-    // Sample the continuous curve at small intervals and then convert to smooth
-    // cubic curves using Catmull-Rom -> cubic Bezier approximation.
+    // Sample the continuous curve - extend beyond visible area
+    // to cover all days in the entire scrollable content
     final samples = <Offset>[];
-    final step = 8.0; // px per sample (smaller -> smoother but heavier)
-    // Sample from bottom -> top so early cap covers the bottom area (Day 1)
-    for (double y = size.height; y >= 0.0; y -= step) {
+    final step = 8.0;
+    // Sample from size.height (bottom) up to negative values to cover all content
+    final minY = -50.0; // Start a bit beyond to ensure coverage
+    for (double y = size.height; y >= minY; y -= step) {
       samples.add(Offset(xForY(y), y));
-      if (samples.length > 6000)
-        break; // safety cap (larger to cover long content)
+      if (samples.length > 10000) break; // Safety limit
     }
 
     if (samples.isNotEmpty) {
       final path = Path()..moveTo(samples[0].dx, samples[0].dy);
 
-      // Catmull-Rom to cubic bezier
       for (int i = 0; i < samples.length - 1; i++) {
         final p0 = i - 1 >= 0 ? samples[i - 1] : samples[i];
         final p1 = samples[i];
         final p2 = samples[i + 1];
         final p3 = i + 2 < samples.length ? samples[i + 2] : samples[i + 1];
 
-        // tension = 1/6 gives nice smooth curves
         final control1 = Offset(
           p1.dx + (p2.dx - p0.dx) / 6.0,
           p1.dy + (p2.dy - p0.dy) / 6.0,
@@ -418,7 +460,7 @@ class _WavyPathPainter extends CustomPainter {
       canvas.drawPath(path, pathPaint);
     }
 
-    // Precompute node centers so decorations (houses/trees) can avoid them.
+    // Precompute node centers
     final nodeCenters = <Offset>[];
     for (int i = 0; i < days; i++) {
       final cy = size.height - (i * segmentH + 150.0);
@@ -426,7 +468,7 @@ class _WavyPathPainter extends CustomPainter {
       nodeCenters.add(Offset(cx, cy));
     }
 
-    // Draw houses along the path (like trees) using precomputed samples.
+    // Draw houses
     void drawHouse(
       Canvas canvas,
       double cx,
@@ -435,7 +477,6 @@ class _WavyPathPainter extends CustomPainter {
       String name,
       bool selected,
     ) {
-      // House base
       final houseW = 34.0 * scale;
       final houseH = 22.0 * scale;
       final basePaint = Paint()
@@ -451,7 +492,6 @@ class _WavyPathPainter extends CustomPainter {
       final rRect = RRect.fromRectAndRadius(rect, const Radius.circular(4));
       canvas.drawRRect(rRect, basePaint);
 
-      // Roof triangle
       final roof = Path()
         ..moveTo(cx - houseW / 2 - 2, cy - houseH / 2)
         ..lineTo(cx + houseW / 2 + 2, cy - houseH / 2)
@@ -459,7 +499,6 @@ class _WavyPathPainter extends CustomPainter {
         ..close();
       canvas.drawPath(roof, roofPaint);
 
-      // Optional small label (shortened)
       final label = TextPainter(
         text: TextSpan(
           text: name.length > 10 ? name.substring(0, 10) + '…' : name,
@@ -477,7 +516,7 @@ class _WavyPathPainter extends CustomPainter {
       );
     }
 
-    // Place houses if available
+    // Place houses
     if (houses.isNotEmpty && samples.length >= 2) {
       final placed = <Offset>[];
       final rand = math.Random(9876);
@@ -499,7 +538,6 @@ class _WavyPathPainter extends CustomPainter {
           final cy = s.dy + (rand.nextDouble() - 0.5) * 18.0;
           final pos = Offset(cx, cy);
 
-          // avoid node centers
           var bad = false;
           for (final n in nodeCenters) {
             if ((n - pos).distance < nodeAvoid) {
@@ -509,7 +547,6 @@ class _WavyPathPainter extends CustomPainter {
           }
           if (bad) continue;
 
-          // avoid other houses
           for (final hpos in placed) {
             if ((hpos - pos).distance < minSpacing) {
               bad = true;
@@ -518,7 +555,6 @@ class _WavyPathPainter extends CustomPainter {
           }
           if (bad) continue;
 
-          // draw
           final scale = 0.9 + rand.nextDouble() * 0.6;
           final name = houses[t];
           final selected = t == selectedHouseIndex;
@@ -529,8 +565,7 @@ class _WavyPathPainter extends CustomPainter {
       }
     }
 
-    // Decorative background: draw trees on top of the road but beneath the
-    // day nodes so they visually sit on the path layer.
+    // Draw trees
     void drawTree(Canvas canvas, double cx, double cy, double scale) {
       final foliagePaint = Paint()
         ..color = const Color(0xFF2F8C3A).withOpacity(0.16)
@@ -562,11 +597,11 @@ class _WavyPathPainter extends CustomPainter {
       canvas.drawRect(rect, trunkPaint);
     }
 
-    // (Tree placement moved below so we can draw them after nodes if desired.)
+    // Draw day nodes from bottom upwards: Day 1 at the bottom
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
 
-    // Draw day nodes from bottom upwards: Day 1 at the bottom.
     for (int i = 0; i < nodeCenters.length; i++) {
-      // use precomputed node center
       final cx = nodeCenters[i].dx;
       final cy = nodeCenters[i].dy;
 
@@ -592,29 +627,123 @@ class _WavyPathPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
       canvas.drawCircle(Offset(cx, cy), 28, innerPaint);
 
-      // Day text
-      final dayText = TextPainter(
-        text: TextSpan(
-          text: 'Day ${i + 1}',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
+      // Calculate date for this day
+      DateTime dayDate;
+      if (firstDayDate != null) {
+        dayDate = firstDayDate!.add(Duration(days: i));
+      } else {
+        dayDate = today.subtract(Duration(days: days - 1 - i));
+      }
 
-      dayText.paint(
-        canvas,
-        Offset(cx - dayText.width / 2, cy - dayText.height / 2),
-      );
+      final dayDateStr =
+          '${dayDate.year.toString().padLeft(4, '0')}-${dayDate.month.toString().padLeft(2, '0')}-${dayDate.day.toString().padLeft(2, '0')}';
+
+      final dayOnly = DateTime(dayDate.year, dayDate.month, dayDate.day);
+      final isToday = dayOnly == todayOnly;
+      final isFuture = dayOnly.isAfter(todayOnly);
+      final isPast = dayOnly.isBefore(todayOnly);
+      final isComplete = dayCompletionStatus[dayDateStr] ?? false;
+
+      // Debug logging untuk day 1 dan day 95-105 untuk troubleshooting
+      if (i == 0 || (i >= 94 && i <= 104)) {
+        debugPrint(
+          '[StreakView] Day ${i + 1}: date=$dayDateStr, isPast=$isPast, isToday=$isToday, isFuture=$isFuture, isComplete=$isComplete',
+        );
+      }
+
+      // 🔹 Aturan Tampilan Day
+      // Day 1 selalu menampilkan "Day 1" text, tidak peduli isPast atau isComplete
+      if (i == 0) {
+        // Day 1: Always show "Day 1" text
+        final dayText = TextPainter(
+          text: const TextSpan(
+            text: 'Day 1',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        dayText.paint(
+          canvas,
+          Offset(cx - dayText.width / 2, cy - dayText.height / 2),
+        );
+      } else if (isPast) {
+        // Other past days
+        if (isComplete) {
+          // Progres = 100% → tampil ikon piala 🏆
+          const trophy = Icons.emoji_events;
+          final trophySpan = TextSpan(
+            text: String.fromCharCode(trophy.codePoint),
+            style: TextStyle(
+              fontSize: 24,
+              fontFamily: trophy.fontFamily,
+              color: Colors.white,
+            ),
+          );
+          final trophyPainter = TextPainter(
+            text: trophySpan,
+            textDirection: TextDirection.ltr,
+          )..layout();
+          trophyPainter.paint(canvas, Offset(cx - 12, cy - 12));
+        } else {
+          // Progres < 100% → tampil Icon X (red circle with red X)
+          final redCirclePaint = Paint()
+            ..color = const Color(0xFFEF5350)
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(Offset(cx, cy), 24, redCirclePaint);
+
+          final xPaint = Paint()
+            ..color = Colors.white
+            ..strokeWidth = 4.0
+            ..strokeCap = StrokeCap.round;
+
+          const offset = 10.0;
+          canvas.drawLine(
+            Offset(cx - offset, cy - offset),
+            Offset(cx + offset, cy + offset),
+            xPaint,
+          );
+          canvas.drawLine(
+            Offset(cx + offset, cy - offset),
+            Offset(cx - offset, cy + offset),
+            xPaint,
+          );
+        }
+      } else {
+        // Today, tomorrow, and future days (i > 0) - tampil "Day X"
+        final displayDayNumber = i + 1;
+        final dayText = TextPainter(
+          text: TextSpan(
+            text: 'Day $displayDayNumber',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+
+        dayText.paint(
+          canvas,
+          Offset(cx - dayText.width / 2, cy - dayText.height / 2),
+        );
+      }
     }
-    // Highlight the current day (1-based). Compute its cy same as above
+
+    // Highlight the current day (today) with larger circle
     if (days > 0 && currentDay >= 1 && currentDay <= days) {
       final idx = (currentDay - 1);
       final cy = size.height - (idx * segmentH + 150.0);
       final cx = xForY(cy);
+
+      debugPrint(
+        '[StreakView] Drawing highlight for currentDay=$currentDay at position ($cx, $cy)',
+      );
 
       // White outer circle (larger)
       final outerPaint = Paint()
@@ -633,14 +762,14 @@ class _WavyPathPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
       canvas.drawCircle(Offset(cx, cy), 34, innerPaint);
 
-      // Current day text
+      // Current day text - show "Day X" clearly on top
       final dayText = TextPainter(
         text: TextSpan(
           text: 'Day $currentDay',
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -652,34 +781,21 @@ class _WavyPathPainter extends CustomPainter {
       );
     }
 
-    // Draw trees on top of the circles/nodes so they are not hidden behind
-    // the day markers. We sample the precomputed `samples` path points to
-    // distribute trees along the entire curved road (bottom -> top).
-    // Increase sampling density and remove the tight cap so trees can
-    // populate the entire curve (previous logic could stop early around
-    // level ~35 due to coarse stepping and low max count).
-    // Keep trees sparse: limit total trees so they don't overcrowd the path.
-    final maxTreesTop = 48; // reasonable default density
+    // Draw trees
+    final maxTreesTop = 48;
     final randTop = math.Random(2345);
     if (samples.isNotEmpty) {
-      // Place a small fixed number of trees evenly across the path so they
-      // reach the very top and remain sparse. If a chosen spot is too close
-      // to a node or another tree, try a few nearby samples before giving up.
       final drawnPositions = <Offset>[];
-      const nodeAvoidDist = 80.0; // don't draw trees nearer than this to a node
-      const minTreeSpacing = 70.0; // minimum distance between trees
+      const nodeAvoidDist = 80.0;
+      const minTreeSpacing = 70.0;
 
-      // Target number of trees across the whole path (kept small)
-      // Reduce slightly so decorations are visible but not crowded.
       final targetTrees = math.min(maxTreesTop, 8);
       if (samples.length >= 2 && targetTrees > 0) {
         for (int t = 0; t < targetTrees; t++) {
-          // evenly spaced sample index (0..samples.length-1)
           final idxDouble = (t * (samples.length - 1) / (targetTrees - 1));
           int baseIdx = idxDouble.round().clamp(0, samples.length - 1);
 
           bool placed = false;
-          // try nearby offsets if the base spot is unsuitable
           for (int attempt = 0; attempt < 9 && !placed; attempt++) {
             final offsetIdx = (baseIdx + (attempt - 4)).clamp(
               0,
@@ -723,7 +839,7 @@ class _WavyPathPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WavyPathPainter old) =>
-      old.days != days || old.currentDay != currentDay;
+      old.days != days ||
+      old.currentDay != currentDay ||
+      old.dayCompletionStatus != dayCompletionStatus;
 }
-
-// (Removed custom painter; using asset `assets/fire.png` instead.)
