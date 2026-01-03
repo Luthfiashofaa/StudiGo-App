@@ -14,10 +14,10 @@ class HomeView extends GetView<HomeController> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final bool isTablet = constraints.maxWidth >= 600;
-          final double horizontalPadding = isTablet ? 32.0 : 20.0;
+          final double horizontalPadding = isTablet ? 48.0 : 20.0;
           final double topPadding = isTablet ? 28.0 : 20.0;
           final double bottomScrollPadding = isTablet ? 140.0 : 110.0;
-          final double maxContentWidth = isTablet ? 900.0 : double.infinity;
+          final double maxContentWidth = double.infinity;
           final double avatarRadius = isTablet ? 34.0 : 28.0;
           final double helloFontSize = isTablet ? 22.0 : 20.0;
           final double nameFontSize = isTablet ? 28.0 : 24.0;
@@ -339,8 +339,8 @@ class HomeView extends GetView<HomeController> {
                                       gridDelegate:
                                           const SliverGridDelegateWithFixedCrossAxisCount(
                                             crossAxisCount: 2,
-                                            mainAxisSpacing: 12,
-                                            crossAxisSpacing: 12,
+                                            mainAxisSpacing: 16,
+                                            crossAxisSpacing: 16,
                                             childAspectRatio: 3.2,
                                           ),
                                       itemBuilder: (context, index) {

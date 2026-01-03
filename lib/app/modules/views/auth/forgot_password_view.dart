@@ -142,28 +142,6 @@ class ForgotPasswordView extends GetView<ForgotPasswordController> {
                         ),
                       ),
                     ),
-                    // show back button icon on tablet only
-                    if (isTablet)
-                      Positioned(
-                        left: -(horizontalPadding + 48.0),
-                        top: 8,
-                        child: SizedBox(
-                          width: horizontalPadding + 64.0,
-                          height: 64.0,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: IconButton(
-                              padding: const EdgeInsets.all(8),
-                              constraints: const BoxConstraints(
-                                minWidth: 48,
-                                minHeight: 48,
-                              ),
-                              onPressed: () => Get.back(),
-                              icon: const Icon(Icons.arrow_back, size: 28),
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),

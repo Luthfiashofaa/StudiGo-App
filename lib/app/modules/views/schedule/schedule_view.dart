@@ -498,6 +498,9 @@ class _ScheduleViewState extends State<ScheduleView> {
                     child: ListView.separated(
                       controller: _dateScrollController,
                       scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.only(
+                        right: isTablet ? 24.0 : 16.0,
+                      ),
                       itemCount: days.length + 1,
                       separatorBuilder: (_, __) =>
                           SizedBox(width: isTablet ? 10 : 10),
