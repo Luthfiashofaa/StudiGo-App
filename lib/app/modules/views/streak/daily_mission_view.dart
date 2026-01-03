@@ -96,15 +96,6 @@ class DailyMissionView extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Container(
-              width: 120,
-              height: 6,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
           ],
         ),
       ),
