@@ -175,7 +175,9 @@ class HomeController extends GetxController {
 
         // Handle case where user doesn't exist in public.users yet
         if (response == null) {
-          debugPrint('[HomeController] User not found in public.users table, using auth data');
+          debugPrint(
+            '[HomeController] User not found in public.users table, using auth data',
+          );
           userName.value = user.email?.split('@').first ?? 'User';
           avatarUrl.value = '';
           return;

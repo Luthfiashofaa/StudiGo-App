@@ -28,7 +28,7 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
       final supa = Get.find<SupabaseService>();
       final authPersistence = Get.find<AuthPersistenceService>();
       final user = supa.currentUser;
-      
+
       debugPrint('[OAuth] Current user: ${user?.email ?? "null"}');
       if (user == null) {
         debugPrint('[OAuth] ❌ User is null, cannot persist login state');
@@ -60,8 +60,10 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
           final createdAt = user.createdAt ?? DateTime.now().toIso8601String();
 
           debugPrint('[OAuth] Creating user in public.users: ${user.email}');
-          debugPrint('[OAuth] User data: id=${user.id}, name=$fullName, created_at=$createdAt');
-          
+          debugPrint(
+            '[OAuth] User data: id=${user.id}, name=$fullName, created_at=$createdAt',
+          );
+
           final insertResult = await supa.client.from('users').insert({
             'id': user.id,
             'email': user.email,
