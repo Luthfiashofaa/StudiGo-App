@@ -4,6 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
+import '../../../data/services/supabase_service.dart';
+import '../../../data/services/auth_persistence_service.dart';
+import '../../bindings/shell/app_shell_binding.dart';
+import '../shell/app_shell.dart';
+
 // controller and supabase service are not referenced directly here to keep
 // this callback view SDK-agnostic; tokens are verified via REST if needed.
 
@@ -16,6 +21,82 @@ class AuthCallbackView extends StatefulWidget {
 
 class _AuthCallbackViewState extends State<AuthCallbackView> {
   bool _processing = false;
+
+  Future<void> _persistLoginState() async {
+    debugPrint('[OAuth] _persistLoginState() called');
+    try {
+      final supa = Get.find<SupabaseService>();
+      final authPersistence = Get.find<AuthPersistenceService>();
+      final user = supa.currentUser;
+
+      debugPrint('[OAuth] Current user: ${user?.email ?? "null"}');
+      if (user == null) {
+        debugPrint('[OAuth] ❌ User is null, cannot persist login state');
+        return;
+      }
+
+      // Check if user exists in public.users table
+      debugPrint('[OAuth] Checking if user exists in public.users...');
+      try {
+        final res = await supa.client
+            .from('users')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (res == null) {
+          // User doesn't exist in public.users, create it from OAuth data
+          final userMeta = user.userMetadata ?? {};
+          final fullName =
+              (userMeta['full_name'] ??
+                      userMeta['name'] ??
+                      user.email?.split('@').first ??
+                      'User')
+                  as String;
+          final avatarUrl =
+              (userMeta['avatar_url'] ?? userMeta['picture'] ?? '') as String;
+
+          // Use auth.user.created_at as the account creation date (Day 1 date)
+          final createdAt = user.createdAt ?? DateTime.now().toIso8601String();
+
+          debugPrint('[OAuth] Creating user in public.users: ${user.email}');
+          debugPrint(
+            '[OAuth] User data: id=${user.id}, name=$fullName, created_at=$createdAt',
+          );
+
+          final insertResult = await supa.client.from('users').insert({
+            'id': user.id,
+            'email': user.email,
+            'name': fullName,
+            'photo_url': avatarUrl.isNotEmpty ? avatarUrl : null,
+            'created_at': createdAt,
+          }).select();
+
+          debugPrint('[OAuth] Insert result: $insertResult');
+          debugPrint('[OAuth] ✅ User created successfully in public.users');
+        } else {
+          debugPrint('[OAuth] User already exists in public.users');
+        }
+      } catch (e, stackTrace) {
+        debugPrint('[OAuth] ❌ Error checking/creating user: $e');
+        debugPrint('[OAuth] Stack trace: $stackTrace');
+        // Re-throw to see error in console
+        rethrow;
+      }
+
+      await authPersistence.saveLoginState(
+        user.id,
+        user.email ?? '',
+        role: 'user', // Default role since table doesn't have role column
+      );
+      debugPrint('[OAuth] ✅ Login state saved to SharedPreferences');
+    } catch (e, stackTrace) {
+      debugPrint('[OAuth] ❌ Persist login state error: $e');
+      debugPrint('[OAuth] Stack trace: $stackTrace');
+      // Re-throw to make error visible
+      rethrow;
+    }
+  }
 
   Future<void> _attemptCompleteSignIn(Map<String, String> fragmentMap) async {
     if (_processing) return;
@@ -35,16 +116,20 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
       return;
     }
 
-    // Try SDK dynamic setSession first
+    // Try SDK setSession first using SupabaseService registered in main.dart
     try {
-      final supSvc = Get.find<dynamic>();
-      final client = supSvc.client as dynamic;
-      final authDyn = client.auth as dynamic;
+      final supabaseService = Get.find<SupabaseService>();
+      final client = supabaseService.client;
+      final authDyn = client.auth as dynamic; // keep dynamic to avoid API drift
       try {
-        await authDyn.setSession({
-          'access_token': access,
-          if (refresh != null) 'refresh_token': refresh,
-        });
+        // Supabase Flutter v2 setSession expects refresh token (it will refresh access token)
+        if (refresh == null || refresh.isEmpty) {
+          throw Exception('refresh_token missing in deep link');
+        }
+        await authDyn.setSession(refresh);
+
+        // Persist login info locally for splash auto-login
+        await _persistLoginState();
 
         // Check if this is password recovery
         if (type == 'recovery') {
@@ -72,7 +157,7 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
             backgroundColor: Colors.green,
             colorText: Colors.white,
           );
-          Get.offAllNamed('/home');
+          Get.offAll(() => const AppShell(), binding: AppShellBinding());
         }
 
         setState(() => _processing = false);
@@ -115,7 +200,8 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
           'Access token verified',
           snackPosition: SnackPosition.BOTTOM,
         );
-        Get.offAllNamed('/home');
+        await _persistLoginState();
+        Get.offAll(() => const AppShell(), binding: AppShellBinding());
       } else {
         if (kDebugMode)
           debugPrint('token verify failed: ${res.statusCode} ${res.body}');
@@ -151,128 +237,39 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
 
   @override
   Widget build(BuildContext context) {
-    final payload = Get.arguments as Map<String, dynamic>? ?? {};
-    final uri = payload['uri'] as String? ?? '';
-    final query = payload['queryParameters'] as Map<String, dynamic>? ?? {};
-    final fragment = payload['fragment'] as String? ?? '';
-    final fragmentMap = payload['fragmentMap'] as Map<String, dynamic>? ?? {};
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Auth Callback')),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final bool isTablet = width >= 600;
-          final horizontalPadding = isTablet ? 24.0 : 16.0;
-          final headingStyle = TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: isTablet ? 18 : 14,
-          );
-          final contentTextStyle = TextStyle(fontSize: isTablet ? 16 : 14);
-
-          Widget buildHeading(String text) => Text(text, style: headingStyle);
-
-          final closeButton = ElevatedButton(
-            onPressed: () {
-              Get.back();
-            },
-            child: const Text('Close'),
-          );
-
-          final completeButton = ElevatedButton(
-            onPressed: _processing
-                ? null
-                : () async {
-                    await _attemptCompleteSignIn(
+      appBar: AppBar(title: const Text('Memproses login')), // tampilan ringkas
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              height: 48,
+              width: 48,
+              child: CircularProgressIndicator(strokeWidth: 4),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Memproses tautan login...\nJangan tutup aplikasi.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            if (!_processing)
+              ElevatedButton(
+                onPressed: () {
+                  final payload = Get.arguments as Map<String, dynamic>? ?? {};
+                  final fragmentMap =
+                      (payload['fragmentMap'] as Map<String, String>?) ?? {};
+                  if (fragmentMap.isNotEmpty) {
+                    _attemptCompleteSignIn(
                       Map<String, String>.from(fragmentMap),
                     );
-                  },
-            child: _processing
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Complete sign-in'),
-          );
-
-          final actions = isTablet
-              ? Row(
-                  children: [
-                    Expanded(child: closeButton),
-                    const SizedBox(width: 12),
-                    Expanded(child: completeButton),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    closeButton,
-                    const SizedBox(height: 12),
-                    completeButton,
-                  ],
-                );
-
-          return Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: isTablet ? 800 : double.infinity,
+                  }
+                },
+                child: const Text('Coba lagi'),
               ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: horizontalPadding,
-                  vertical: 16,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      buildHeading('Received deep link URI'),
-                      const SizedBox(height: 8),
-                      SelectableText(uri, style: contentTextStyle),
-                      const SizedBox(height: 16),
-                      buildHeading('Query parameters'),
-                      const SizedBox(height: 8),
-                      if (query.isEmpty)
-                        Text('(none)', style: contentTextStyle)
-                      else
-                        ...query.entries.map(
-                          (e) => Text(
-                            '${e.key}: ${e.value}',
-                            style: contentTextStyle,
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                      buildHeading('Fragment (raw)'),
-                      const SizedBox(height: 8),
-                      Text(
-                        fragment.isEmpty ? '(none)' : fragment,
-                        style: contentTextStyle,
-                      ),
-                      const SizedBox(height: 16),
-                      buildHeading('Fragment parsed'),
-                      const SizedBox(height: 8),
-                      if (fragmentMap.isEmpty)
-                        Text('(none)', style: contentTextStyle)
-                      else
-                        ...fragmentMap.entries.map(
-                          (e) => Text(
-                            '${e.key}: ${e.value}',
-                            style: contentTextStyle,
-                          ),
-                        ),
-                      const SizedBox(height: 24),
-                      actions,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
