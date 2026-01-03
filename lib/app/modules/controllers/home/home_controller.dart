@@ -171,7 +171,15 @@ class HomeController extends GetxController {
             .from('users')
             .select('firstname, lastname, name, photo_url')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
+
+        // Handle case where user doesn't exist in public.users yet
+        if (response == null) {
+          debugPrint('[HomeController] User not found in public.users table, using auth data');
+          userName.value = user.email?.split('@').first ?? 'User';
+          avatarUrl.value = '';
+          return;
+        }
 
         // Gunakan firstname dan lastname jika ada, jika tidak gunakan name atau email
         if (response['firstname'] != null && response['lastname'] != null) {
