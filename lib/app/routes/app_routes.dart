@@ -9,6 +9,7 @@ abstract class Routes {
   static const profile = _Paths.profile;
   static const testNotification = _Paths.testNotification;
   static const newPassword = _Paths.newPassword;
+  static const geminiChat = _Paths.geminiChat;
 }
 
 abstract class _Paths {
@@ -20,4 +21,5 @@ abstract class _Paths {
   static const profile = '/profile';
   static const testNotification = '/test-notification';
   static const newPassword = '/new-password';
+  static const geminiChat = '/gemini-chat';
 }
