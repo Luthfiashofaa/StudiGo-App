@@ -8,6 +8,7 @@ import '../../../data/services/supabase_service.dart';
 import '../schedule/schedule_controller.dart';
 import '../streak/streak_helper.dart';
 import '../streak/streak_controller.dart';
+import 'gemini_chat_controller.dart';
 
 class HomeController extends GetxController {
   final _supabaseService = Get.find<SupabaseService>();
@@ -22,6 +23,11 @@ class HomeController extends GetxController {
   // Observable untuk tracking tugas hari ini
   final RxList<Map<String, dynamic>> todayTasks = <Map<String, dynamic>>[].obs;
   final completedTasksCount = 0.obs;
+
+  // Observable untuk Gemini suggestion
+  final aiSuggestion = ''.obs;
+  final suggestedTaskTitle = ''.obs;
+  final isGeneratingSuggestion = false.obs;
 
   // Computed property untuk progress percentage
   int get progressPercentage {
@@ -40,6 +46,7 @@ class HomeController extends GetxController {
     _initScheduleListener();
     _loadUserData();
     _loadTodayTasks();
+    _generateAISuggestion();
   }
 
   void _initScheduleListener() {
@@ -210,12 +217,26 @@ class HomeController extends GetxController {
   // Fungsi untuk buka Gemini AI
   Future<void> openGeminiAI() async {
     try {
-      // Buka Gemini AI di browser
-      await openGeminiInBrowser();
+      // Register and navigate to GeminiChatView
+      if (!Get.isRegistered<GeminiChatController>()) {
+        Get.put(GeminiChatController());
+      }
+
+      // Set schedule context for the chat
+      final chatController = Get.find<GeminiChatController>();
+      _setScheduleContextForChat(chatController);
+
+      Get.toNamed('/gemini-chat');
     } catch (e) {
       debugPrint('Error opening Gemini AI: $e');
+      // Fallback to browser if in-app chat fails
       openGeminiInBrowser();
     }
+  }
+
+  void _setScheduleContextForChat(GeminiChatController chatController) {
+    // Pass actual task data as list
+    chatController.updateScheduleContext(todayTasks.toList());
   }
 
   Future<void> openGeminiInBrowser() async {
@@ -334,6 +355,79 @@ class HomeController extends GetxController {
     debugPrint(
       '[HomeController] Daily progress updated: ${progressPercentage.toStringAsFixed(1)}% ($completedTasks/$totalTasks tasks)',
     );
+
+    // Generate AI suggestion when tasks are updated
+    _generateAISuggestion();
+  }
+
+  Future<void> _generateAISuggestion() async {
+    try {
+      isGeneratingSuggestion.value = true;
+
+      if (todayTasks.isEmpty) {
+        aiSuggestion.value = 'Tambahkan jadwal belajar untuk hari ini!';
+        suggestedTaskTitle.value = 'Buat jadwal baru';
+        return;
+      }
+
+      // Get the first incomplete task or highest priority
+      final incompleteTasks = todayTasks
+          .where((t) => t['isCompleted'] != true)
+          .toList();
+
+      if (incompleteTasks.isEmpty) {
+        aiSuggestion.value = 'Hebat! Semua tugas hari ini sudah selesai! 🎉';
+        suggestedTaskTitle.value = 'Semua tugas selesai';
+        return;
+      }
+
+      final nextTask = incompleteTasks.first;
+      final taskTitle = nextTask['title'] ?? 'Tugas';
+
+      // Generate context-aware suggestion
+      final suggestion = _generateContextAwareSuggestion(
+        taskTitle,
+        incompleteTasks.length,
+        progressPercentage,
+      );
+
+      aiSuggestion.value = suggestion;
+      suggestedTaskTitle.value = taskTitle;
+    } catch (e) {
+      debugPrint('Error generating AI suggestion: $e');
+      aiSuggestion.value =
+          'Siap capai targetmu hari ini dengan fokus maksimal!';
+      suggestedTaskTitle.value = 'Mulai belajar';
+    } finally {
+      isGeneratingSuggestion.value = false;
+    }
+  }
+
+  String _generateContextAwareSuggestion(
+    String taskTitle,
+    int pendingCount,
+    int progress,
+  ) {
+    final time = DateTime.now().hour;
+    String timeGreeting = '';
+
+    if (time < 12) {
+      timeGreeting = 'pagi yang sempurna untuk fokus pada';
+    } else if (time < 17) {
+      timeGreeting = 'waktu yang tepat untuk menyelesaikan';
+    } else {
+      timeGreeting = 'malam yang ideal untuk mereview';
+    }
+
+    final suggestions = [
+      'AI menyarankan kamu fokus pada "$taskTitle" sekarang - ini adalah $timeGreeting tugas ini',
+      'Prioritas: Kerjakan "$taskTitle" dulu untuk momentum yang lebih baik. Ada $pendingCount tugas lagi hari ini',
+      'Energimu masih bagus! Ambil kesempatan ini untuk menguasai "$taskTitle" dengan baik',
+      'Dengan penyelesaian "$taskTitle", progresmu akan mencapai ${(progress + (100 ~/ (pendingCount + 1))).clamp(0, 100)}%',
+      'Fokus pada "$taskTitle" untuk 45 menit dengan Pomodoro technique - pasti bisa!',
+    ];
+
+    return suggestions[taskTitle.hashCode % suggestions.length];
   }
 
   // Refresh semua data

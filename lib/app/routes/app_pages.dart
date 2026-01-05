@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:studigo/app/modules/views/splashscreen_view.dart';
 import 'package:studigo/app/modules/views/auth/login_view.dart';
 import 'package:studigo/app/modules/views/home/home_view.dart';
+import 'package:studigo/app/modules/views/home/gemini_chat_view.dart';
 import 'package:studigo/app/modules/views/auth/auth_callback_view.dart';
 import 'package:studigo/app/modules/views/auth/new_password_view.dart';
 import 'package:studigo/app/modules/views/schedule/add_schedule_view.dart';
@@ -43,7 +44,7 @@ class AppPages {
       name: _Paths.testNotification,
       page: () => const TestNotificationScreen(),
     ),
-
+    GetPage(name: _Paths.geminiChat, page: () => const GeminiChatView()),
     GetPage(name: '/auth-callback', page: () => const AuthCallbackView()),
     GetPage(
       name: '/new-password',
