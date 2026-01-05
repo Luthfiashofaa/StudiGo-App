@@ -65,7 +65,7 @@ class _AppShellState extends State<AppShell> {
         icon: Icon(
           icon,
           color: isActive ? Colors.white : Colors.white70,
-          size: 32,
+          size: 29,
         ),
       ),
     );
@@ -112,7 +112,7 @@ class _AppShellState extends State<AppShell> {
         child: Obx(() => _pages[_shellController.currentIndex.value]),
       ),
       bottomNavigationBar: Container(
-        height: 86,
+        height: 83,
         decoration: const BoxDecoration(
           color: primaryBlue,
           borderRadius: BorderRadius.only(
