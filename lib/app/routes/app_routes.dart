@@ -8,6 +8,7 @@ abstract class Routes {
   static const addschedule = _Paths.addschedule;
   static const profile = _Paths.profile;
   static const testNotification = _Paths.testNotification;
+  static const newPassword = _Paths.newPassword;
 }
 
 abstract class _Paths {
@@ -18,4 +19,5 @@ abstract class _Paths {
   static const addschedule = '/add-schedule';
   static const profile = '/profile';
   static const testNotification = '/test-notification';
+  static const newPassword = '/new-password';
 }

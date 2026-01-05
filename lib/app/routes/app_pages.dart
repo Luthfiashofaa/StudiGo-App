@@ -3,11 +3,13 @@ import 'package:studigo/app/modules/views/splashscreen_view.dart';
 import 'package:studigo/app/modules/views/auth/login_view.dart';
 import 'package:studigo/app/modules/views/home/home_view.dart';
 import 'package:studigo/app/modules/views/auth/auth_callback_view.dart';
+import 'package:studigo/app/modules/views/auth/new_password_view.dart';
 import 'package:studigo/app/modules/views/schedule/add_schedule_view.dart';
 import 'package:studigo/app/modules/views/profile/profile_view.dart';
 import 'package:studigo/app/routes/test_notification_screen.dart';
 
 import 'package:studigo/app/modules/bindings/auth/login_binding.dart';
+import 'package:studigo/app/modules/bindings/auth/new_password_binding.dart';
 import 'package:studigo/app/modules/bindings/home/home_binding.dart';
 import 'package:studigo/app/modules/bindings/schedule/add_schedule_binding.dart';
 import 'package:studigo/app/modules/bindings/profile/profile_binding.dart';
@@ -43,5 +45,10 @@ class AppPages {
     ),
 
     GetPage(name: '/auth-callback', page: () => const AuthCallbackView()),
+    GetPage(
+      name: '/new-password',
+      page: () => const NewPasswordView(),
+      binding: NewPasswordBinding(),
+    ),
   ];
 }

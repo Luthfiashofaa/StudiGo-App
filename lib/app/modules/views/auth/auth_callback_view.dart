@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/services/supabase_service.dart';
 import '../../../data/services/auth_persistence_service.dart';
@@ -21,6 +22,112 @@ class AuthCallbackView extends StatefulWidget {
 
 class _AuthCallbackViewState extends State<AuthCallbackView> {
   bool _processing = false;
+
+  Future<void> _completeSignInFromSession(
+    Session? session, {
+    String? type,
+  }) async {
+    if (session == null) {
+      Get.snackbar(
+        'Sign-in failed',
+        'Session not returned from Supabase',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    await _persistLoginState();
+
+    if (type == 'recovery') {
+      Get.snackbar(
+        'Recovery Session Active',
+        'Please set your new password',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.blue,
+        colorText: Colors.white,
+      );
+      Get.offAllNamed(
+        '/new-password',
+        arguments: {
+          'access_token': session.accessToken,
+          'refresh_token': session.refreshToken,
+          'type': type,
+        },
+      );
+    } else {
+      Get.snackbar(
+        'Signed in',
+        'Sign-in completed successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+      Get.offAll(() => const AppShell(), binding: AppShellBinding());
+    }
+  }
+
+  Future<void> _attemptCodeExchange(Map<String, dynamic> queryParams) async {
+    if (_processing) return;
+    setState(() => _processing = true);
+
+    final code = queryParams['code']?.toString();
+    final type = queryParams['type']?.toString();
+
+    if (code == null || code.isEmpty) {
+      Get.snackbar(
+        'No code',
+        'No code found in deep link',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      setState(() => _processing = false);
+      return;
+    }
+
+    try {
+      final supabaseService = Get.find<SupabaseService>();
+      final client = supabaseService.client;
+
+      // Password recovery links from resetPasswordForEmail are always OTP-based
+      // tokens, not PKCE codes. Try verifyOTP first with recovery type.
+      try {
+        final res = await client.auth.verifyOTP(
+          token: code,
+          type: OtpType.recovery,
+        );
+        await _completeSignInFromSession(res.session, type: 'recovery');
+        setState(() => _processing = false);
+        return;
+      } catch (otpError) {
+        if (kDebugMode) debugPrint('verifyOTP failed: $otpError');
+
+        // If verifyOTP fails, it might be a PKCE code (e.g., from OAuth login)
+        // Try exchangeCodeForSession as fallback
+        try {
+          final response = await client.auth.exchangeCodeForSession(code);
+          await _completeSignInFromSession(response.session, type: type);
+          setState(() => _processing = false);
+          return;
+        } catch (pkceError) {
+          if (kDebugMode)
+            debugPrint('exchangeCodeForSession failed: $pkceError');
+          throw pkceError;
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('code exchange failed: $e');
+      Get.snackbar(
+        'Authentication Error',
+        'Unable to complete sign-in. Please request a new reset link.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+
+    setState(() => _processing = false);
+  }
 
   Future<void> _persistLoginState() async {
     debugPrint('[OAuth] _persistLoginState() called');
@@ -231,7 +338,18 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
       final payload = Get.arguments as Map<String, dynamic>? ?? {};
       final fragmentMap =
           (payload['fragmentMap'] as Map<String, String>?) ?? {};
-      if (fragmentMap.isNotEmpty) _attemptCompleteSignIn(fragmentMap);
+      if (fragmentMap.isNotEmpty) {
+        _attemptCompleteSignIn(fragmentMap);
+        return;
+      }
+
+      // Handle OAuth code flow (query parameter "code") e.g. email recovery
+      final queryParams = payload['queryParameters'] as Map<String, dynamic>?;
+      if (queryParams != null && queryParams.isNotEmpty) {
+        if (queryParams.containsKey('code')) {
+          _attemptCodeExchange(queryParams);
+        }
+      }
     });
   }
 
