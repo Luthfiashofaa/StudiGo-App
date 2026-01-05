@@ -682,7 +682,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
     const activeBoxColor = Color(0xFF6097FF);
 
     return Container(
-      height: 86,
+      height: 83,
       decoration: const BoxDecoration(
         color: primaryBlue,
         borderRadius: BorderRadius.only(
@@ -746,7 +746,7 @@ class _AddScheduleViewState extends State<AddScheduleView> {
         icon: Icon(
           icon,
           color: isActive ? Colors.white : Colors.white70,
-          size: 32,
+          size: 29,
         ),
       ),
     );

@@ -59,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           children: [
             const Spacer(flex: 5),
-            Image.asset('assets/logo.png', width: 400, height: 400),
+            Image.asset('assets/logo.png', width: 397, height: 397),
             const SizedBox(height: 20),
             const CircularProgressIndicator(
               color: Colors.white,

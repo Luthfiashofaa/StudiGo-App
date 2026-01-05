@@ -67,7 +67,7 @@ class _LoginViewState extends State<LoginView> {
             final horizontalPadding = isTablet ? 32.0 : 24.0;
             final titleSize = isTablet ? 36.0 : 30.0;
             final descSize = isTablet ? 16.0 : 14.0;
-            final imageSize = isTablet ? 220.0 : 170.0;
+            final imageSize = isTablet ? 217.0 : 167.0;
 
             return Center(
               child: ConstrainedBox(

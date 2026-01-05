@@ -33,8 +33,8 @@ class _SplashScreenState extends State<SplashScreen> {
             const Spacer(flex: 5),
             Image.asset(
               'assets/logo.png', // sesuaikan path asetmu
-              width: 400,
-              height: 400,
+              width: 397,
+              height: 397,
             ),
             const SizedBox(height: 20),
             const CircularProgressIndicator(

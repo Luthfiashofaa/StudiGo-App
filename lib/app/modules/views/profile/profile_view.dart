@@ -15,15 +15,19 @@ class ProfileView extends GetView<ProfileController> {
     InputDecoration fieldDecoration(String hint) => InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      fillColor: Colors.white.withOpacity(0.9),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.grey.shade300),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: primaryBlue, width: 1.6),
       ),
     );
 
@@ -35,146 +39,229 @@ class ProfileView extends GetView<ProfileController> {
         final double avatarSize = isTablet ? 140.0 : 120.0;
         final double maxContentWidth = isTablet ? 900.0 : double.infinity;
 
-        return Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxContentWidth),
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: verticalPadding,
+        return Stack(
+          children: [
+            Positioned(
+              top: -120,
+              left: -80,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF4A90E2).withOpacity(0.18),
+                      const Color(0xFF4A90E2).withOpacity(0.0),
+                    ],
+                  ),
+                ),
               ),
-              child: GetBuilder<ProfileController>(
-                init: ProfileController(),
-                builder: (ctrl) {
-                  final c = ctrl;
-                  if (c == null) {
-                    return const SizedBox();
-                  }
-                  return Obx(() {
-                    if (c.isLoadingProfile.value) {
-                      return const SizedBox(
-                        height: 240,
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
+            ),
+            Positioned(
+              top: 120,
+              right: -60,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF8B5CF6).withOpacity(0.14),
+                      const Color(0xFF8B5CF6).withOpacity(0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -60,
+              left: -50,
+              child: Container(
+                width: 240,
+                height: 240,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF10B981).withOpacity(0.12),
+                      const Color(0xFF10B981).withOpacity(0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxContentWidth),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: verticalPadding,
+                  ),
+                  child: GetBuilder<ProfileController>(
+                    init: ProfileController(),
+                    builder: (ctrl) {
+                      final c = ctrl;
+                      if (c == null) {
+                        return const SizedBox();
+                      }
+                      return Obx(() {
+                        if (c.isLoadingProfile.value) {
+                          return const SizedBox(
+                            height: 240,
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 8),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 8),
 
-                        // Avatar with camera badge
-                        Center(
-                          child: Stack(
-                            children: [
-                              Container(
-                                width: avatarSize,
-                                height: avatarSize,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 6,
+                            // Avatar with camera badge
+                            Center(
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: avatarSize + 14,
+                                    height: avatarSize + 14,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF4A90E2),
+                                          Color(0xFF8B5CF6),
+                                        ],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF4A90E2)
+                                              .withOpacity(0.25),
+                                          blurRadius: 22,
+                                          offset: const Offset(0, 10),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: ClipOval(
-                                  child: () {
-                                    if (c.avatarPath != null) {
-                                      return Image.file(
-                                        File(c.avatarPath!),
-                                        fit: BoxFit.cover,
-                                      );
-                                    }
-                                    if (c.avatarUrl != null &&
-                                        c.avatarUrl!.isNotEmpty) {
-                                      return Image.network(
-                                        c.avatarUrl!,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            Image.asset(
-                                              'assets/avatar_placeholder.png',
+                                    padding: const EdgeInsets.all(4),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.06),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: ClipOval(
+                                        child: () {
+                                          if (c.avatarPath != null) {
+                                            return Image.file(
+                                              File(c.avatarPath!),
                                               fit: BoxFit.cover,
+                                            );
+                                          }
+                                          if (c.avatarUrl != null &&
+                                              c.avatarUrl!.isNotEmpty) {
+                                            return Image.network(
+                                              c.avatarUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  Image.asset(
+                                                    'assets/avatar_placeholder.png',
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                            );
+                                          }
+                                          return Image.asset(
+                                            'assets/avatar_placeholder.png',
+                                            fit: BoxFit.cover,
+                                          );
+                                        }(),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 6,
+                                    bottom: 8,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        showModalBottomSheet<void>(
+                                          context: context,
+                                          builder: (ctx) => SafeArea(
+                                            child: Wrap(
+                                              children: [
+                                                ListTile(
+                                                  leading: const Icon(
+                                                    Icons.photo_library,
+                                                  ),
+                                                  title: const Text(
+                                                    'Choose from gallery',
+                                                  ),
+                                                  onTap: () {
+                                                    c.pickImage(
+                                                      ImageSource.gallery,
+                                                    );
+                                                    Navigator.of(ctx).pop();
+                                                  },
+                                                ),
+                                                ListTile(
+                                                  leading: const Icon(
+                                                    Icons.camera_alt,
+                                                  ),
+                                                  title: const Text('Take a photo'),
+                                                  onTap: () {
+                                                    c.pickImage(ImageSource.camera);
+                                                    Navigator.of(ctx).pop();
+                                                  },
+                                                ),
+                                              ],
                                             ),
-                                      );
-                                    }
-                                    return Image.asset(
-                                      'assets/avatar_placeholder.png',
-                                      fit: BoxFit.cover,
-                                    );
-                                  }(),
-                                ),
-                              ),
-                              Positioned(
-                                right: 0,
-                                bottom: 4,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    showModalBottomSheet<void>(
-                                      context: context,
-                                      builder: (ctx) => SafeArea(
-                                        child: Wrap(
-                                          children: [
-                                            ListTile(
-                                              leading: const Icon(
-                                                Icons.photo_library,
-                                              ),
-                                              title: const Text(
-                                                'Choose from gallery',
-                                              ),
-                                              onTap: () {
-                                                c.pickImage(
-                                                  ImageSource.gallery,
-                                                );
-                                                Navigator.of(ctx).pop();
-                                              },
-                                            ),
-                                            ListTile(
-                                              leading: const Icon(
-                                                Icons.camera_alt,
-                                              ),
-                                              title: const Text('Take a photo'),
-                                              onTap: () {
-                                                c.pickImage(ImageSource.camera);
-                                                Navigator.of(ctx).pop();
-                                              },
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        width: isTablet ? 46 : 42,
+                                        height: isTablet ? 46 : 42,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF0B61FF),
+                                              Color(0xFF4F46E5),
+                                            ],
+                                          ),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF0B61FF)
+                                                  .withOpacity(0.35),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
                                             ),
                                           ],
                                         ),
+                                        child: const Icon(
+                                          Icons.camera_alt,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
                                       ),
-                                    );
-                                  },
-                                  child: Container(
-                                    width: isTablet ? 44 : 40,
-                                    height: isTablet ? 44 : 40,
-                                    decoration: BoxDecoration(
-                                      color: primaryBlue,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.camera_alt,
-                                      color: Colors.white,
-                                      size: 20,
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
 
-                        SizedBox(height: isTablet ? 22 : 18),
+                            SizedBox(height: isTablet ? 22 : 18),
 
                         const Text(
                           'Email',
@@ -433,13 +520,32 @@ class ProfileView extends GetView<ProfileController> {
 
                         // Notification Reminder Settings
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.blue.withOpacity(0.2),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.92),
+                                Colors.white.withOpacity(0.86),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4A90E2).withOpacity(0.08),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
+                              ),
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.9),
+                                blurRadius: 2,
+                                offset: const Offset(0, -1),
+                              ),
+                            ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -593,8 +699,10 @@ class ProfileView extends GetView<ProfileController> {
                               foregroundColor: Colors.white,
                               minimumSize: Size.fromHeight(isTablet ? 56 : 52),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(14),
                               ),
+                              elevation: 6,
+                              shadowColor: primaryBlue.withOpacity(0.35),
                             ),
                             child: c.isSaving.value
                                 ? const SizedBox(
@@ -609,7 +717,7 @@ class ProfileView extends GetView<ProfileController> {
                                     'Complete',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                           ),
@@ -619,23 +727,20 @@ class ProfileView extends GetView<ProfileController> {
                         OutlinedButton(
                           onPressed: c.logout,
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: const Color.fromARGB(
-                              255,
-                              255,
-                              255,
-                              255,
-                            ),
+                            backgroundColor: Colors.white.withOpacity(0.9),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            side: BorderSide(color: primaryBlue),
+                            side: BorderSide(color: primaryBlue.withOpacity(0.65)),
                             minimumSize: Size.fromHeight(isTablet ? 52 : 48),
+                            shadowColor: Colors.black12,
+                            elevation: 3,
                           ),
                           child: const Text(
                             'Logout',
                             style: TextStyle(
                               color: primaryBlue,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
@@ -648,8 +753,10 @@ class ProfileView extends GetView<ProfileController> {
               ),
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+          ]
+      );
+    },
+  );
+}
 }

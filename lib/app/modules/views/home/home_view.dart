@@ -10,7 +10,7 @@ class HomeView extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FBFF),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final bool isTablet = constraints.maxWidth >= 600;
@@ -26,26 +26,44 @@ class HomeView extends GetView<HomeController> {
 
           return Stack(
             children: [
+              // Animated gradient background blobs
               Positioned(
-                top: 180,
-                left: -70,
+                top: -50,
+                left: -80,
                 child: Container(
-                  width: 300,
-                  height: 300,
+                  width: 350,
+                  height: 350,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        Colors.blue.withOpacity(0.11),
-                        Colors.blue.withOpacity(0.0),
+                        const Color(0xFF4A90E2).withOpacity(0.15),
+                        const Color(0xFF4A90E2).withOpacity(0.0),
                       ],
                     ),
                   ),
                 ),
               ),
               Positioned(
-                top: 150,
-                right: -90,
+                top: 120,
+                right: -100,
+                child: Container(
+                  width: 380,
+                  height: 380,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFF8B5CF6).withOpacity(0.12),
+                        const Color(0xFF8B5CF6).withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 100,
+                left: -70,
                 child: Container(
                   width: 320,
                   height: 320,
@@ -53,42 +71,25 @@ class HomeView extends GetView<HomeController> {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        Colors.purple.withOpacity(0.1),
-                        Colors.purple.withOpacity(0.0),
+                        const Color(0xFF10B981).withOpacity(0.08),
+                        const Color(0xFF10B981).withOpacity(0.0),
                       ],
                     ),
                   ),
                 ),
               ),
               Positioned(
-                bottom: 150,
-                left: -60,
+                bottom: -100,
+                right: -120,
                 child: Container(
-                  width: 260,
-                  height: 260,
+                  width: 450,
+                  height: 450,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        Colors.blue.withOpacity(0.05),
-                        Colors.blue.withOpacity(0.0),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -50,
-                right: -150,
-                child: Container(
-                  width: 400,
-                  height: 400,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        Colors.blue.withOpacity(0.04),
-                        Colors.blue.withOpacity(0.0),
+                        const Color(0xFFF59E0B).withOpacity(0.06),
+                        const Color(0xFFF59E0B).withOpacity(0.0),
                       ],
                     ),
                   ),
@@ -117,23 +118,42 @@ class HomeView extends GetView<HomeController> {
                                     Obx(() {
                                       final hasAvatar =
                                           controller.avatarUrl.value.isNotEmpty;
-                                      return CircleAvatar(
-                                        radius: avatarRadius,
-                                        backgroundColor: const Color(
-                                          0xFFEEF6FF,
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              const Color(0xFF4A90E2),
+                                              const Color(0xFF8B5CF6),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF4A90E2).withOpacity(0.3),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
                                         ),
-                                        backgroundImage: hasAvatar
-                                            ? NetworkImage(
-                                                controller.avatarUrl.value,
-                                              )
-                                            : null,
-                                        child: hasAvatar
-                                            ? null
-                                            : Icon(
-                                                Icons.person,
-                                                size: avatarRadius,
-                                                color: Colors.blue,
-                                              ),
+                                        padding: const EdgeInsets.all(3),
+                                        child: CircleAvatar(
+                                          radius: avatarRadius,
+                                          backgroundColor: Colors.white,
+                                          backgroundImage: hasAvatar
+                                              ? NetworkImage(
+                                                  controller.avatarUrl.value,
+                                                )
+                                              : null,
+                                          child: hasAvatar
+                                              ? null
+                                              : Icon(
+                                                  Icons.person,
+                                                  size: avatarRadius,
+                                                  color: const Color(0xFF4A90E2),
+                                                ),
+                                        ),
                                       );
                                     }),
                                     const SizedBox(width: 12),
@@ -168,17 +188,26 @@ class HomeView extends GetView<HomeController> {
                                             'Halo!',
                                             style: TextStyle(
                                               fontSize: helloFontSize,
-                                              color: Colors.black,
+                                              color: Colors.black54,
                                               fontFamily: 'LieblingMedium',
                                             ),
                                           ),
                                           const SizedBox(height: 4),
-                                          Text(
-                                            controller.userName.value,
-                                            style: TextStyle(
-                                              fontSize: nameFontSize,
-                                              fontFamily: 'LieblingBold',
-                                              fontWeight: FontWeight.w800,
+                                          ShaderMask(
+                                            shaderCallback: (bounds) => const LinearGradient(
+                                              colors: [
+                                                Color(0xFF4A90E2),
+                                                Color(0xFF8B5CF6),
+                                              ],
+                                            ).createShader(bounds),
+                                            child: Text(
+                                              controller.userName.value,
+                                              style: TextStyle(
+                                                fontSize: nameFontSize,
+                                                fontFamily: 'LieblingBold',
+                                                fontWeight: FontWeight.w800,
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -199,18 +228,40 @@ class HomeView extends GetView<HomeController> {
                                 GestureDetector(
                                   onTap: () => controller.openGeminiAI(),
                                   child: Container(
-                                    padding: const EdgeInsets.all(16),
+                                    padding: const EdgeInsets.all(18),
                                     decoration: BoxDecoration(
-                                      color: Colors.black87,
-                                      borderRadius: BorderRadius.circular(12),
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF1E293B),
+                                          Color(0xFF334155),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF1E293B).withOpacity(0.3),
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                      ],
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(
-                                          Icons.auto_awesome,
-                                          color: Colors.amber,
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Icon(
+                                            Icons.auto_awesome,
+                                            color: Colors.amber,
+                                            size: 24,
+                                          ),
                                         ),
-                                        const SizedBox(width: 12),
+                                        const SizedBox(width: 14),
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment:
@@ -220,15 +271,27 @@ class HomeView extends GetView<HomeController> {
                                                 'AI menyarankan kamu fokus pada tugas "Kalkulus" hari ini',
                                                 style: TextStyle(
                                                   color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
-                                              SizedBox(height: 4),
-                                              Text(
-                                                'Tap untuk buka Gemini AI',
-                                                style: TextStyle(
-                                                  color: Colors.amber,
-                                                  fontSize: 12,
-                                                ),
+                                              SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    'Tap untuk buka Gemini AI',
+                                                    style: TextStyle(
+                                                      color: Colors.amber,
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 4),
+                                                  Icon(
+                                                    Icons.arrow_forward,
+                                                    color: Colors.amber,
+                                                    size: 14,
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),
@@ -240,15 +303,32 @@ class HomeView extends GetView<HomeController> {
                                 const SizedBox(height: 40),
                                 Container(
                                   width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(20),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(14),
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.white,
+                                        Colors.white.withOpacity(0.95),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.8),
+                                      width: 1.5,
+                                    ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.06),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 6),
+                                        color: const Color(0xFF4A90E2).withOpacity(0.08),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 10),
+                                        spreadRadius: 0,
+                                      ),
+                                      BoxShadow(
+                                        color: Colors.white.withOpacity(0.8),
+                                        blurRadius: 1,
+                                        offset: const Offset(0, -1),
                                       ),
                                     ],
                                   ),
@@ -256,14 +336,36 @@ class HomeView extends GetView<HomeController> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        'Progress',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF4A90E2),
+                                                  Color(0xFF357ABD),
+                                                ],
+                                              ),
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: const Icon(
+                                              Icons.timeline,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          const Text(
+                                            'Progress',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: 16),
                                       Obx(
                                         () => Row(
                                           mainAxisAlignment:
@@ -273,32 +375,71 @@ class HomeView extends GetView<HomeController> {
                                               'Dari target harian yang tercapai',
                                               style: TextStyle(
                                                 color: Colors.black54,
+                                                fontSize: 13,
                                               ),
                                             ),
-                                            Text(
-                                              '${controller.progressPercentage}%',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF4A90E2),
+                                                    Color(0xFF357ABD),
+                                                  ],
+                                                ),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                '${controller.progressPercentage}%',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 14),
                                       Obx(
-                                        () => ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
+                                        () => Container(
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(10),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.05),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
-                                          child: LinearProgressIndicator(
-                                            minHeight: 10,
-                                            value: controller.progressValue,
-                                            backgroundColor:
-                                                Colors.grey.shade300,
-                                            valueColor:
-                                                const AlwaysStoppedAnimation<
-                                                  Color
-                                                >(Colors.blue),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(10),
+                                            child: Stack(
+                                              children: [
+                                                Container(
+                                                  color: const Color(0xFFE8F4FF),
+                                                ),
+                                                FractionallySizedBox(
+                                                  widthFactor: controller.progressValue,
+                                                  child: Container(
+                                                    decoration: const BoxDecoration(
+                                                      gradient: LinearGradient(
+                                                        colors: [
+                                                          Color(0xFF4A90E2),
+                                                          Color(0xFF8B5CF6),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -306,12 +447,32 @@ class HomeView extends GetView<HomeController> {
                                   ),
                                 ),
                                 const SizedBox(height: 26),
-                                Text(
-                                  'Tugas Hari ini',
-                                  style: TextStyle(
-                                    fontSize: sectionTitleSize,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 4,
+                                      height: sectionTitleSize + 4,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF4A90E2),
+                                            Color(0xFF8B5CF6),
+                                          ],
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                        ),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Tugas Hari ini',
+                                      style: TextStyle(
+                                        fontSize: sectionTitleSize,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 12),
                                 Obx(() {
@@ -432,30 +593,63 @@ class _TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.white.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.9),
+          width: 1.5,
+        ),
         boxShadow: [
-          // soft centered glow to give an even halo
           BoxShadow(
-            color: Colors.black.withOpacity(0.035),
-            blurRadius: 14,
-            spreadRadius: 1.2,
-            offset: const Offset(0, 0),
+            color: const Color(0xFF4A90E2).withOpacity(0.06),
+            blurRadius: 16,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.white.withOpacity(0.7),
+            blurRadius: 1,
+            offset: const Offset(0, -1),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: isTablet ? 48 : 44,
-            height: isTablet ? 48 : 44,
+            width: isTablet ? 52 : 48,
+            height: isTablet ? 52 : 48,
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(10),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF4A90E2).withOpacity(0.15),
+                  const Color(0xFF8B5CF6).withOpacity(0.15),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4A90E2).withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Icon(icon, color: Colors.blue, size: isTablet ? 24 : 22),
+            child: Icon(
+              icon,
+              color: const Color(0xFF4A90E2),
+              size: isTablet ? 26 : 24,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -469,12 +663,34 @@ class _TaskCard extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
-            onPressed: onToggle,
-            icon: Icon(
-              isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: isCompleted ? Colors.blue : Colors.grey,
-              size: isTablet ? 28 : 26,
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: isCompleted
+                  ? const LinearGradient(
+                      colors: [
+                        Color(0xFF4A90E2),
+                        Color(0xFF357ABD),
+                      ],
+                    )
+                  : null,
+              boxShadow: isCompleted
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF4A90E2).withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: IconButton(
+              onPressed: onToggle,
+              icon: Icon(
+                isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: isCompleted ? Colors.white : Colors.grey.shade400,
+                size: isTablet ? 28 : 26,
+              ),
             ),
           ),
         ],
