@@ -31,7 +31,7 @@ Aplikasi StudiGo adalah aplikasi manajemen jadwal belajar yang membantu pengguna
 
 📁 **Worksheet:**
 
-🔗 [Link Figma](https://www.figma.com/design/YzQUAIvhrhhuxwAIBcfUqB/StudiGo?node-id=1-827&t=loaHNEGd4PbfY09L-0)
+🔗 [Worksheet](https://github.com/Luthfiashofaa/StudiGo-App/tree/0a982999151380fc0053c25136db339190fafc17/Worksheet)
 
 
 ---
@@ -40,7 +40,7 @@ Aplikasi StudiGo adalah aplikasi manajemen jadwal belajar yang membantu pengguna
 
 📁 **Low-fidelity di repository:**
 
-🔗 [/Low Fidelity Studio Go App](https://github.com/Luthfiashofaa/StudiGo-App/tree/0a982999151380fc0053c25136db339190fafc17/Worksheet)
+🔗 [/Low Fidelity Studio Go App](https://github.com/Luthfiashofaa/StudiGo-App/tree/bb103a3ff7e21cb116a21126c8b5c12d0ca1c791/Low%20Fidelity%20Studio%20Go%20App)
 
 
 ---
