@@ -56,7 +56,7 @@ Aplikasi StudiGo adalah aplikasi manajemen jadwal belajar yang membantu pengguna
 ---
 ## Aplikasi Studio Go
 | Agile Organization    | Fitur Login                      | Fitur Register  | Fitur AI | Fitur Jadwal | Fitur Streak Target |
-|-------|----------------------------------|--------|---------------|--------------|---------------------------|--------|
+|-------|----------------------------------|--------|---------------|--------------|--------|
 | Product Owner |      |  |        |         |           |    |
 | Scrum Master |     |  |          |       |           |    |
 | Tim Pengembang |    | |      |         |             |    |
