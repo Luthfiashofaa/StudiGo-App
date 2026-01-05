@@ -89,23 +89,41 @@ class _AuthCallbackViewState extends State<AuthCallbackView> {
       final supabaseService = Get.find<SupabaseService>();
       final client = supabaseService.client;
 
-      // Password recovery links are OTP-based, not PKCE, so use verifyOTP.
-      if (type == 'recovery') {
+      // Password recovery links from resetPasswordForEmail are always OTP-based
+      // tokens, not PKCE codes. Try verifyOTP first with recovery type.
+      try {
         final res = await client.auth.verifyOTP(
           token: code,
           type: OtpType.recovery,
         );
-        await _completeSignInFromSession(res.session, type: type);
+        await _completeSignInFromSession(res.session, type: 'recovery');
         setState(() => _processing = false);
         return;
-      }
+      } catch (otpError) {
+        if (kDebugMode) debugPrint('verifyOTP failed: $otpError');
 
-      final response = await client.auth.exchangeCodeForSession(code);
-      await _completeSignInFromSession(response.session, type: type);
-      setState(() => _processing = false);
-      return;
+        // If verifyOTP fails, it might be a PKCE code (e.g., from OAuth login)
+        // Try exchangeCodeForSession as fallback
+        try {
+          final response = await client.auth.exchangeCodeForSession(code);
+          await _completeSignInFromSession(response.session, type: type);
+          setState(() => _processing = false);
+          return;
+        } catch (pkceError) {
+          if (kDebugMode)
+            debugPrint('exchangeCodeForSession failed: $pkceError');
+          throw pkceError;
+        }
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('code exchange failed: $e');
+      Get.snackbar(
+        'Authentication Error',
+        'Unable to complete sign-in. Please request a new reset link.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
 
     setState(() => _processing = false);
