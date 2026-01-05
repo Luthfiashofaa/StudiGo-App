@@ -1,4 +1,57 @@
-# 🚀 Quick Start - Gemini AI Integration
+# 🚀 Quick Start - Gemini AI Integration (UPDATED WITH REAL API)
+
+## ⚡ NEW: Real Gemini API Integration
+
+**StudiGo sekarang menggunakan REAL Google Gemini API!** AI bisa menjawab **SEMUA PERTANYAAN**, tidak hanya schedule.
+
+### Setup API Key dalam 3 Langkah
+
+#### 1️⃣ Dapatkan API Key (Gratis!)
+1. Buka: https://aistudio.google.com/app/apikey
+2. Login dengan Google
+3. Klik **"Create API Key"**
+4. Copy API key yang muncul
+
+#### 2️⃣ Tambahkan ke .env File
+Edit file `.env` di root project:
+```dotenv
+GEMINI_API_KEY=AIzaSy...your_actual_key_here
+```
+
+#### 3️⃣ Restart App
+```bash
+flutter clean
+flutter pub get
+flutter run
+```
+
+---
+
+## ✨ Fitur Baru dengan Real API
+
+### Pertanyaan Umum (Powered by Gemini)
+```
+❓ "Apa itu fotosintesis?"
+❓ "Jelaskan teori relativitas Einstein"
+❓ "Bagaimana cara menulis kode Python?"
+❓ "Tips public speaking?"
+❓ "Ceritakan tentang sejarah Indonesia"
+```
+
+### Pertanyaan Schedule (Database Context)
+```
+📅 "Apa prioritas aku hari ini?"
+📅 "Tampilkan jadwal aku"
+```
+
+### Pertanyaan Belajar
+```
+📚 "Gimana cara belajar efektif?"
+📚 "Tips mengatasi stress belajar"
+📚 "Teknik memorisasi yang bagus?"
+```
+
+---
 
 ## Apa yang Sudah Dibuat?
 

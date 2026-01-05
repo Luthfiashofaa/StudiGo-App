@@ -239,24 +239,6 @@ class HomeController extends GetxController {
     chatController.updateScheduleContext(todayTasks.toList());
   }
 
-  String _buildScheduleContext() {
-    if (todayTasks.isEmpty) {
-      return 'User tidak memiliki tugas hari ini.';
-    }
-
-    final taskList = todayTasks
-        .map(
-          (t) =>
-              '- ${t['title']} (${t['isCompleted'] == true ? 'Selesai' : 'Belum'})',
-        )
-        .join('\n');
-
-    return '''Jadwal hari ini:
-$taskList
-
-Progress: ${progressPercentage}%''';
-  }
-
   Future<void> openGeminiInBrowser() async {
     final url = Uri.parse('https://gemini.google.com');
     if (await canLaunchUrl(url)) {

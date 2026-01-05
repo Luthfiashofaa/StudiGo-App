@@ -1,6 +1,9 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiChatController extends GetxController {
   final messageController = TextEditingController();
@@ -19,12 +22,147 @@ class GeminiChatController extends GetxController {
   var userSchedules = <Map<String, dynamic>>[].obs;
   var userTasks = <Map<String, dynamic>>[].obs;
 
+  // Gemini AI Model
+  GenerativeModel? _geminiModel;
+  ChatSession? _chatSession;
+  String? _workingModelName;
+
+  // Get API Key from .env file
+  String get _geminiApiKey {
+    final envKey = dotenv.env['GEMINI_API_KEY']?.trim() ?? '';
+    final defineKey = const String.fromEnvironment('GEMINI_API_KEY');
+    final key = envKey.isNotEmpty ? envKey : defineKey;
+
+    if (kDebugMode) {
+      final source = envKey.isNotEmpty
+          ? 'dotenv'
+          : defineKey.isNotEmpty
+          ? 'dart-define'
+          : 'none';
+      final masked = key.length > 8
+          ? '${key.substring(0, 4)}...${key.substring(key.length - 4)}'
+          : key;
+      debugPrint('[Gemini] Key source: $source (len=${key.length}, $masked)');
+    }
+
+    return key.isNotEmpty ? key : 'YOUR_GEMINI_API_KEY_HERE';
+  }
+
   @override
   void onInit() {
     super.onInit();
+    _initializeGeminiAI();
     _initializeControllers();
     _initializeWithGreeting();
     _loadUserData();
+  }
+
+  Future<void> _initializeGeminiAI() async {
+    try {
+      final apiKey = _geminiApiKey;
+      print('🔑 Checking Gemini API Key...');
+      print(
+        '   API Key status: ${apiKey == 'YOUR_GEMINI_API_KEY_HERE' ? '❌ NOT SET' : '✅ Found'}',
+      );
+
+      // Validate API key
+      if (apiKey == 'YOUR_GEMINI_API_KEY_HERE' || apiKey.isEmpty) {
+        print('⚠️  GEMINI API KEY NOT SET!');
+        print('   Using template responses only.');
+        print('');
+        print('📝 To enable real AI:');
+        print('   1. Get free API key: https://aistudio.google.com/app/apikey');
+        print('   2. Add to .env file: GEMINI_API_KEY=your_key_here');
+        print('   3. Restart app');
+        print('');
+        return;
+      }
+
+      if (apiKey.length < 20) {
+        print('⚠️  API Key seems too short. Please check your .env file.');
+        return;
+      }
+
+      // List of models to try (in order of preference)
+      final modelsToTry = [
+        // Explicit model paths expected by the API
+        'models/gemini-1.5-flash-latest',
+        'models/gemini-1.5-flash',
+        'models/gemini-1.5-pro-latest',
+        'models/gemini-1.5-pro',
+        // Older stable models if the key does not have access to 1.5 models
+        'models/gemini-1.0-pro-latest',
+        'models/gemini-1.0-pro',
+        'models/gemini-pro', // Last resort for legacy keys
+      ];
+
+      bool initialized = false;
+
+      // Try each model until one works
+      for (final modelName in modelsToTry) {
+        try {
+          print('🔄 Trying model: $modelName...');
+
+          final testModel = GenerativeModel(
+            model: modelName,
+            apiKey: apiKey,
+            systemInstruction: Content.system(
+              '''You are a helpful study assistant for StudiGo app. 
+You help students with:
+- Study schedule optimization
+- Learning techniques and tips
+- Motivation and stress management
+- Subject-specific advice (Physics, Calculus, Programming, Languages, etc.)
+
+Be friendly, supportive, and provide actionable advice. 
+Use Indonesian language for better understanding.
+Format responses with emojis and proper markdown for readability.''',
+            ),
+          );
+
+          // Test the model with a simple query
+          final testSession = testModel.startChat();
+          final testResponse = await testSession
+              .sendMessage(Content.text('Hi'))
+              .timeout(const Duration(seconds: 10));
+
+          if (testResponse.text != null && testResponse.text!.isNotEmpty) {
+            _geminiModel = testModel;
+            _chatSession = testSession;
+            _workingModelName = modelName;
+            initialized = true;
+            print('   ✅ Success with $modelName!');
+            break;
+          }
+        } catch (e) {
+          print('   ❌ Failed: ${e.toString().split('\n')[0]}');
+          continue;
+        }
+      }
+
+      if (initialized && _workingModelName != null) {
+        print('');
+        print('✅ Gemini AI initialized successfully!');
+        print('   Model: $_workingModelName');
+        print('   You can now ask ANY question! 🚀');
+        print('');
+      } else {
+        print('');
+        print('❌ All models failed to initialize.');
+        print('   Using template responses only.');
+        print('');
+        print('🔧 Troubleshooting:');
+        print(
+          '   1. Check API key is valid at https://aistudio.google.com/apikey',
+        );
+        print('   2. Verify internet connection');
+        print('   3. Try regenerating API key');
+        print('');
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error initializing Gemini AI: $e');
+      print('   Falling back to template responses.');
+    }
   }
 
   void _initializeControllers() {
@@ -125,15 +263,13 @@ class GeminiChatController extends GetxController {
   }
 
   Future<String> _generateGeminiResponse(String userMessage) async {
-    // This is a placeholder. In production, integrate with Google Gemini API
-    // For now, we'll provide helpful responses based on keywords
-
     if (userMessage.isEmpty) {
       return 'Silakan ketik pesan terlebih dahulu!';
     }
 
     final lowerMessage = userMessage.toLowerCase();
 
+    // Priority 1: Check for schedule-specific questions (use database context)
     if (lowerMessage.contains('prioritas') ||
         lowerMessage.contains('prioritize') ||
         lowerMessage.contains('prioritas apa') ||
@@ -145,7 +281,66 @@ class GeminiChatController extends GetxController {
         lowerMessage.contains('arrange') ||
         lowerMessage.contains('atur jadwal')) {
       return _generateScheduleResponse();
-    } else if (lowerMessage.contains('tips') ||
+    }
+
+    // Priority 2: Try Gemini API for general questions
+    if (_chatSession != null && _geminiModel != null) {
+      try {
+        print('🤖 Calling Gemini API ($_workingModelName)...');
+
+        // Add schedule context to the prompt if available
+        String contextualPrompt = userMessage;
+        if (userTasks.isNotEmpty) {
+          final taskSummary = userTasks
+              .map((t) => t['title'])
+              .take(3)
+              .join(', ');
+          contextualPrompt = '''User's today schedule includes: $taskSummary
+
+User question: $userMessage''';
+          print('   📋 With schedule context: ${userTasks.length} tasks');
+        }
+
+        final response = await _chatSession!
+            .sendMessage(Content.text(contextualPrompt))
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () {
+                throw Exception('Request timeout - please try again');
+              },
+            );
+
+        final text = response.text;
+        if (text != null && text.isNotEmpty) {
+          print('✅ Gemini API response received (${text.length} chars)');
+          return text;
+        } else {
+          print('⚠️ Gemini API returned empty response');
+          throw Exception('Empty response from API');
+        }
+      } catch (e) {
+        print('❌ Error calling Gemini API: $e');
+
+        // User-friendly error messages
+        if (e.toString().contains('API key')) {
+          print('   Falling back to template responses...');
+        } else if (e.toString().contains('not found')) {
+          print('   Model not available, falling back to templates...');
+        } else if (e.toString().contains('quota')) {
+          print('   API quota exceeded, falling back to templates...');
+        } else if (e.toString().contains('timeout')) {
+          return '⚠️ Koneksi timeout. Silakan coba lagi dalam beberapa saat.';
+        }
+
+        // Fall through to template responses
+      }
+    } else {
+      print('⚠️ Gemini API not initialized (API key not set)');
+      print('   Using template responses...');
+    }
+
+    // Priority 3: Fallback to template responses if API not available
+    if (lowerMessage.contains('tips') ||
         lowerMessage.contains('cara') ||
         lowerMessage.contains('teknik') ||
         lowerMessage.contains('method') ||
