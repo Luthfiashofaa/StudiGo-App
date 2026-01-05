@@ -8,7 +8,7 @@
 
 ## **Deskripsi Aplikasi**
 
-Aplikasi StudiGo adalah aplikasi manajemen jadwal belajar yang membantu pengguna mengatur aktivitas harian, pengingat, serta memantau perkembangan belajar.
+StudiGo adalah aplikasi manajemen jadwal harian yang dirancang untuk membantu pengguna mengatur aktivitas belajar dan kegiatan sehari-hari secara terstruktur dan efisien. Aplikasi ini memungkinkan pengguna untuk membuat, mengelola, dan memantau jadwal harian dengan mudah, sehingga dapat meningkatkan produktivitas dan kedisiplinan waktu.
 
 ---
 
