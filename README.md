@@ -53,13 +53,13 @@ StudiGo adalah aplikasi manajemen jadwal harian yang dirancang untuk membantu pe
 
 
 ---
-## Aplikasi Studio Go
-| Agile Organization    | Fitur Login                      | Fitur Register  | Fitur AI | Fitur Jadwal | Fitur Streak Target |
-|-------|----------------------------------|--------|---------------|--------------|--------|
-| Product Owner |      |  |        |         |           |    |
-| Scrum Master |     |  |          |       |           |    |
-| Tim Pengembang |    | |      |         |             |    |
-| Status |  |  |       |     |             |    |
+## backlog 
+| Agile Organization    | Fitur Login | Fitur Register  | Fitur AI | Fitur Jadwal | Fitur Streak Target | fitur notifikasi | fitur Profile |
+|-----------------------|-------------|-----------------|----------|--------------|---------------------|------------------|---------------|
+| Product Owner         |  Luthfia    | Luthfia         |    Nabil |    Ainun     |      Luthfia        |  Drestanto       |  Drestanto    |
+| Scrum Master          |   Drestanto | Ainun           |  Luthfia |    Nabil     |          Drestanto  |   Ainun          |       Nabil   |
+| Tim Pengembang        |   Luthfia, Drestanto  | Luthfia, Drestanto     |   Nabil, Ainun    |          Nabil, Ainun    |      Luthfia, Nabil           |    Drestanto              |      Drestanto         |
+| Status                |     Done        |          Done       |   Done       |        Done      |      Done               |        Done          |         Done      |
 
 ___
 
